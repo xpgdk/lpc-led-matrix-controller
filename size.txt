@@ -1,0 +1,12 @@
+   text	   data	    bss	    dec	    hex	filename
+    100	      0	      0	    100	     64	out/startup.o
+   2604	      0	    328	   2932	    b74	out/led_matrix.o
+    832	      0	      4	    836	    344	out/main.o
+      8	    192	      0	    200	     c8	out/vectors.o
+   3544	    192	    332	   4068	    fe4	(TOTALS)
+ 
+Size of target .elf file:
+arm-none-eabi-size -B out/lpc1114_blink_led.elf
+   text	   data	    bss	    dec	    hex	filename
+   3644	      0	   2392	   6036	   1794	out/lpc1114_blink_led.elf
+

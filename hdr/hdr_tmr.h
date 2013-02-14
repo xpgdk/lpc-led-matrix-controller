@@ -1,0 +1,99 @@
+#ifndef HDR_TMR_H
+#define HDR_TMR_H
+
+#define TMR16_TCR_CEN_bit		0
+#define TMR16_TCR_CRST_bit		1
+#define TMR16_TCR_CEN			(1 << TMR16_TCR_CEN_bit)
+#define TMR16_TCR_CRST			(1 << TMR16_TCR_CRST_bit)
+
+#define TMR16_MCR_MR0I_bit		0
+#define TMR16_MCR_MR0R_bit		1
+#define TMR16_MCR_MR0S_bit		2
+#define TMR16_MCR_MR1I_bit		3
+#define TMR16_MCR_MR1R_bit		4
+#define TMR16_MCR_MR1S_bit		5
+#define TMR16_MCR_MR2I_bit		6
+#define TMR16_MCR_MR2R_bit		7
+#define TMR16_MCR_MR2S_bit		8
+#define TMR16_MCR_MR3I_bit		9
+#define TMR16_MCR_MR3R_bit		10
+#define TMR16_MCR_MR3S_bit		11
+
+#define TMR16_MCR_MR0I			(1 << TMR16_MCR_MR0I_bit)
+#define TMR16_MCR_MR0R			(1 << TMR16_MCR_MR0R_bit)
+#define TMR16_MCR_MR0S			(1 << TMR16_MCR_MR0S_bit)
+#define TMR16_MCR_MR1I			(1 << TMR16_MCR_MR1I_bit)
+#define TMR16_MCR_MR1R			(1 << TMR16_MCR_MR1R_bit)
+#define TMR16_MCR_MR1S			(1 << TMR16_MCR_MR1S_bit)
+#define TMR16_MCR_MR2I			(1 << TMR16_MCR_MR2I_bit)
+#define TMR16_MCR_MR2R			(1 << TMR16_MCR_MR2R_bit)
+#define TMR16_MCR_MR2S			(1 << TMR16_MCR_MR2S_bit)
+#define TMR16_MCR_MR3I			(1 << TMR16_MCR_MR3I_bit)
+#define TMR16_MCR_MR3R			(1 << TMR16_MCR_MR3R_bit)
+#define TMR16_MCR_MR3S			(1 << TMR16_MCR_MR3S_bit)
+
+#define TMR16_CCR_CAP0RE_bit		0
+#define TMR16_CCR_CAP0FE_bit		1
+#define TMR16_CCR_CAP0I_bit		2
+#define TMR16_CCR_CAP1RE_bit		3
+#define TMR16_CCR_CAP1FE_bit		4
+#define TMR16_CCR_CAP1I_bit		5
+
+#define TMR16_CCR_CAP0RE		(1 << TMR16_CCR_CAP0RE_bit)
+#define TMR16_CCR_CAP0FE		(1 << TMR16_CCR_CAP0FE_bit)
+#define TMR16_CCR_CAP0I			(1 << TMR16_CCR_CAP0I_bit)
+#define TMR16_CCR_CAP1RE		(1 << TMR16_CCR_CAP1RE_bit)
+#define TMR16_CCR_CAP1FE		(1 << TMR16_CCR_CAP1FE_bit)
+#define TMR16_CCR_CAP1I			(1 << TMR16_CCR_CAP1I_bit)
+
+#define TMR16_EMR_EM0_bit		0
+#define TMR16_EMR_EM1_bit		1
+#define TMR16_EMR_EM2_bit		2
+#define TMR16_EMR_EM3_bit		3
+
+#define TMR16_CTCR_CTM_bit		0
+#define TMR16_CTCR_CTM_TIMER_MODE_value	0
+#define TMR16_CTCR_CTM_COUNT_RISE_value	1
+#define TMR16_CTCR_CTM_COUNT_FALL_value 2
+#define TMR16_CTCR_CTM_BOTH_value	3
+#define TMR16_CTCR_CTM_mask		3
+
+#define TMR16_CTCR_CTM_TIMER_MODE	(TMR16_CTCR_CTM_TIMER_MODE_value << TMR16_CTCR_CTM_bit)
+#define TMR16_CTCR_CTM_COUNT_RISE	(TMR16_CTCR_CTM_COUNT_RISE_value << TMR16_CTCR_CTM_bit)
+#define TMR16_CTCR_CTM_COUNT_FALL	(TMR16_CTCR_CTM_COUNT_FALL_value << TMR16_CTCR_CTM_bit)
+#define TMR16_CTCR_CTM_BOTH		(TMR16_CTCR_CTM_BOTH_value << TMR16_CTCR_CTM_bit)
+
+#define TMR16_CTCR_CIS_bit		2
+#define TMR16_CTCR_CIS_mask		3
+#define TMR16_CTCR_CIS_CAP0_value	0
+#define TMR16_CTCR_CIS_CAP1_value	1
+
+#define TMR16_CTCR_CIS_CAP0		(TMR16_CTCR_CIS_CAP0_value << TMR16_CTCR_CIS_bit)
+#define TMR16_CTCR_CIS_CAP1		(TMR16_CTCR_CIS_CAP1_value << TMR16_CTCR_CIS_bit)
+
+#define TMR16_CTCR_ENCC_bit		4
+#define TMR16_CTCR_ENCC			(1 << TMR16_CTCR_ENCC_bit)
+
+#define TMR16_CTCR_SELCC_bit			5
+#define TMR16_CTCR_SELCC_mask			7
+#define TMR16_CTCR_SELCC_RISE_CAP0_value	0
+#define TMR16_CTCR_SELCC_FALL_CAP0_value	1
+#define TMR16_CTCR_SELCC_RISE_CAP1_value	2
+#define TMR16_CTCR_SELCC_FALL_CAP1_value	3
+
+#define TMR16_CTCR_SELCC_RISE_CAP0		(TMR16_CTCR_SELCC_RISE_CAP0_value << TMR16_CTCR_SELCC_bit)
+#define TMR16_CTCR_SELCC_FALL_CAP0		(TMR16_CTCR_SELCC_FALL_CAP0_value << TMR16_CTCR_SELCC_bit)
+#define TMR16_CTCR_SELCC_RISE_CAP1		(TMR16_CTCR_SELCC_RISE_CAP1_value << TMR16_CTCR_SELCC_bit)
+#define TMR16_CTCR_SELCC_FALL_CAP1		(TMR16_CTCR_SELCC_FALL_CAP1_value << TMR16_CTCR_SELCC_bit)
+
+#define TMR16_PWMC_PWMEN0_bit			0
+#define TMR16_PWMC_PWMEN1_bit			1
+#define TMR16_PWMC_PWMEN2_bit			2
+#define TMR16_PWMC_PWMEN3_bit			3
+
+#define TMR16_PWMC_PWMEN0			(1 << TMR16_PWMC_PWMEN0_bit)
+#define TMR16_PWMC_PWMEN1			(1 << TMR16_PWMC_PWMEN1_bit)
+#define TMR16_PWMC_PWMEN2			(1 << TMR16_PWMC_PWMEN2_bit)
+#define TMR16_PWMC_PWMEN3			(1 << TMR16_PWMC_PWMEN3_bit)
+
+#endif
