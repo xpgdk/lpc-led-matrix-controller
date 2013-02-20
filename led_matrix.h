@@ -4,11 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-//#define ROW(n) 			(~(1<<n))
-#define ROW(n) 			(n==6 ? 0 : (1<<n) | 0x40 )
+#define ROW(n) 			((1<<n))
+//#define ROW(n) 			(n==6 ? 0 : (1<<n) | 0x40 )
 
 #define RED_SHIFT               0
-#define GREEN_SHIFT     	4
+#define GREEN_SHIFT     	8
+#define COLOR_MASK		0xFF
 
 #define COLOR(r,g,b) 		((r & 0xFF)+((g & 0xFF)<<GREEN_SHIFT))
 
@@ -17,8 +18,10 @@
 
 #define FB_SIZE			(LED_MATRIX_ROWS*LED_MATRIX_COLS*2)
 
+typedef uint16_t fb_color_t;
+
 extern uint8_t msg_mode;
-extern volatile uint16_t fb[LED_MATRIX_ROWS][LED_MATRIX_COLS];
+extern volatile fb_color_t fb[LED_MATRIX_ROWS][LED_MATRIX_COLS];
 
 #define MODE_STATIC	0
 #define MODE_ANIM	1
@@ -27,8 +30,8 @@ typedef void (*display_anim_callback_t)(void);
 
 void set_message(char *buf, uint16_t len);
 void append_message(char *buf, uint16_t len);
-void clearDisplay(uint16_t v[LED_MATRIX_ROWS][LED_MATRIX_COLS]);
-void displayFillColor(uint16_t color);
+void clearDisplay(fb_color_t v[LED_MATRIX_ROWS][LED_MATRIX_COLS]);
+void displayFillColor(fb_color_t color);
 bool displayTick(void);
 void displayScrollTickSetMessage(char *buf, uint16_t len);
 bool displayScrollTick(void);

@@ -81,8 +81,6 @@ static void system_sleep(void);
 
 int main(void)
 {
-	volatile uint32_t count, count_max = 500000;	// with core frequency ~50MHz this gives ~1.5Hz blinking frequency
-
 	pll_start(CRYSTAL, FREQUENCY);			// start the PLL
 	system_init();							// initialize other necessary elements
 
@@ -90,8 +88,8 @@ int main(void)
 	// Each frame takes ROW_COUNT*COLOR_LEVELS*COLORS updates
 	// = 8 * 15 * 2 = 240 updates
 	// We thus need a frequency of 12000Hz = 12KHz
-	LPC_TMR16B0->PR = 50; // We run at 50MHz, scale down to 1MHz
-	LPC_TMR16B0->MR0 = 80; // 12.5KHz
+	LPC_TMR16B0->PR = 40; // We run at 50MHz, scale down to 1MHz
+	LPC_TMR16B0->MR0 = 40; // 12.5KHz
 	LPC_TMR16B0->MCR = TMR16_MCR_MR0I | TMR16_MCR_MR0R;
 	LPC_TMR16B0->TCR |= TMR16_TCR_CEN; // Enable timer
 
@@ -112,14 +110,16 @@ int main(void)
 	displayInit();
 
 	//char s[] = "#F00H#220e#550l#FF0l#BF0o #0F0W#F00orld  ";
-	char s[] = "#FF0EEEE     ";
+	char s[] = "#3F00J#003Fo#203Fn#3F20athan #103FFleischer  ";
+	//char s[] = "#FF0EEEE     ";
 
 	set_message(s, strlen(s));
-	//set_char('E', COLOR(0xF, 0xF, 0));
-	//displayFillColor(COLOR(15, 15, 0));
+	//set_char('E', COLOR(0x3, 0xF, 0));
+	//displayFillColor(COLOR(20, 0, 0));
+	//msg_mode = MODE_ANIM;
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
-	NVIC_EnableIRQ(SSP1_IRQn);
+	//NVIC_EnableIRQ(SSP1_IRQn);
 
 	//LED_GPIO->MASKED_ACCESS[LED] = LED;
 	while (1)
@@ -318,6 +318,9 @@ uint32_t counter = 0;
 extern "C" {
 #endif
 
+static uint8_t my_red_color = 0;
+static uint8_t my_green_color = 0;
+
 void TIMER16_0_IRQHandler(void)
 {
 	//LED_gma = 0;
@@ -328,9 +331,19 @@ void TIMER16_0_IRQHandler(void)
 #if 1
 		if( msg_mode == MODE_ANIM && frameDone ) {
 			counter++;
-			if(counter >= 15) {
+			if(counter >= 5) {
 				counter = 0;
 				displayAnimTick();
+#if 0
+				my_red_color++;
+				my_green_color += 2;
+				if ( my_red_color > 64)
+					my_red_color = 0;
+				if ( my_green_color > 64)
+					my_green_color = 0;
+				displayFillColor(COLOR(my_red_color, my_green_color, 0));
+				msg_mode = MODE_ANIM;
+#endif
 			}
 		}
 #endif
@@ -420,7 +433,7 @@ void SSP1_IRQHandler(void)
 						//LPC_SSP1->DR = CMD_RESP_OK;
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						append_message(data_buffer, data_count);
+						append_message((char*)data_buffer, data_count);
 #ifdef DEBUG
 						printf("Got all data\r\n");
 						for(int i=0; i<data_count; i++) {

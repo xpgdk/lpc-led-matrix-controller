@@ -3,12 +3,12 @@
 
 #include "uart.h"
 
-char* itoa(uint16_t number, uint8_t base) {
+char* itoa(int32_t number, int base) {
     if(!number) {
         return "0";
     }
     static char buf[16] = {0};
-        register char i = 14;
+        register int i = 14;
         char m = 0;
         if(number < 0) {
                 number = number * (-1);
