@@ -85,11 +85,11 @@ int main(void)
 	system_init();							// initialize other necessary elements
 
 	// We want 50 frames per second.
-	// Each frame takes ROW_COUNT*COLOR_LEVELS*COLORS updates
-	// = 8 * 15 * 2 = 240 updates
-	// We thus need a frequency of 12000Hz = 12KHz
-	LPC_TMR16B0->PR = 40; // We run at 50MHz, scale down to 1MHz
-	LPC_TMR16B0->MR0 = 40; // 12.5KHz
+	// Each frame takes ROW_COUNT*COLOR_LEVELS updates
+	// = 8 * 64 = 512 updates
+	// We thus need a frequency of 512 * 50 = 25600 = 25.6KHz
+	LPC_TMR16B0->PR = 45; // We run at 50MHz, scale down to 1.1MHz
+	LPC_TMR16B0->MR0 = 40; // 27.78KHz
 	LPC_TMR16B0->MCR = TMR16_MCR_MR0I | TMR16_MCR_MR0R;
 	LPC_TMR16B0->TCR |= TMR16_TCR_CEN; // Enable timer
 
@@ -110,7 +110,7 @@ int main(void)
 	displayInit();
 
 	//char s[] = "#F00H#220e#550l#FF0l#BF0o #0F0W#F00orld  ";
-	char s[] = "#3F00J#003Fo#203Fn#3F20athan #103FFleischer  ";
+	char s[] = "#3F00J#003Fo#203Fn#3F20a#3F00than #0A3FFleischer  ";
 	//char s[] = "#FF0EEEE     ";
 
 	set_message(s, strlen(s));
@@ -119,7 +119,7 @@ int main(void)
 	//msg_mode = MODE_ANIM;
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
-	//NVIC_EnableIRQ(SSP1_IRQn);
+	NVIC_EnableIRQ(SSP1_IRQn);
 
 	//LED_GPIO->MASKED_ACCESS[LED] = LED;
 	while (1)
@@ -452,9 +452,9 @@ void SSP1_IRQHandler(void)
 					} else {
 						/*LPC_SSP1->CR1 &= ~SSP_CR1_SOD;
 						LPC_SSP1->DR = CMD_RESP_ERR;*/
-						printf("Ignoring data in invalid state: ");
+						/*printf("Ignoring data in invalid state: ");
 						putHex8(data);
-						printf("\r\n");
+						printf("\r\n");*/
 					}
 				break;
 			}
