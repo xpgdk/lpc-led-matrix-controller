@@ -41,6 +41,22 @@ putHex8(uint8_t v)
 }
 
 void
+putHex16(uint16_t v)
+{
+        char *buf;
+        buf = itoa(v, 16);
+        printf(buf);
+}
+
+void
+putHex32(uint32_t v)
+{
+        char *buf;
+        buf = itoa(v, 16);
+        printf(buf);
+}
+
+void
 printf(const char *str)
 {
 	while(*str != '\0') {

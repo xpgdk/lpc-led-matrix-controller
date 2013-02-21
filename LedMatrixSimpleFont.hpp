@@ -3,12 +3,10 @@
 
 #include "LedMatrix.hpp"
 
-class LedMatrixSimpleFont : LedMatrixFont
+class LedMatrixSimpleFont : public LedMatrixFont
 {
 public:
-	const uint8_t* 	getFontData() {
-		return NULL;
-	}
+	const FontChar* 	getFontData();
 
 	uint8_t		getFontWidth() {
 		return 8;

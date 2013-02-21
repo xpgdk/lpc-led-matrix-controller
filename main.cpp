@@ -37,9 +37,11 @@
 
 #include <stdint.h>
 #include <string.h>
+extern "C" {
 #include "inc/LPC11xx.h"
 #include "config.h"
 #include "uart.h"
+}
 
 #include "hdr/hdr_syscon.h"
 #include "hdr/hdr_power.h"
@@ -47,8 +49,15 @@
 #include "hdr/hdr_uart.h"
 #include "hdr/hdr_ssp.h"
 
-#include "led_matrix.h"
+extern "C" {
+//#include "led_matrix.h"
 #include "led_matrix_config.h"
+}
+
+#include "LedMatrix.hpp"
+#include "LedMatrixSimpleFont.hpp"
+
+LedMatrix<LedMatrixSimpleFont,8,16> matrix;
 
 /*
 +=============================================================================+
@@ -107,19 +116,27 @@ int main(void)
 	ROW_LATCH_PORT->DIR |= ROW_LATCH_PIN;
 	ROW_ENABLE_PORT->DIR |= ROW_ENABLE_PIN;
 
-	displayInit();
+	//displayInit();
 
 	//char s[] = "#F00H#220e#550l#FF0l#BF0o #0F0W#F00orld  ";
 	char s[] = "#3F00J#003Fo#203Fn#3F20a#3F00than #0A3FFleischer  ";
+	//char s[] = "Jonathan Fleischer  ";
 	//char s[] = "#FF0EEEE     ";
+	//char s[] = "Hello World";
 
-	set_message(s, strlen(s));
+	matrix.setMessage(s, strlen(s));
+	//LedMatrixColor color(0xA, 0x3F, 0x00);
+	//matrix.setChar('H', color);
+	//matrix.clear(color);
+	//set_message(s, strlen(s));
 	//set_char('E', COLOR(0x3, 0xF, 0));
 	//displayFillColor(COLOR(20, 0, 0));
 	//msg_mode = MODE_ANIM;
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
 	NVIC_EnableIRQ(SSP1_IRQn);
+
+	printf("Entering loop\r\n");
 
 	//LED_GPIO->MASKED_ACCESS[LED] = LED;
 	while (1)
@@ -327,13 +344,17 @@ void TIMER16_0_IRQHandler(void)
 	//NVIC_ClearPendingIRQ(TIMER_16_0_IRQn);
 	if( LPC_TMR16B0->IR & 0x01) {
 		LPC_TMR16B0->IR = 0x01;
-		bool frameDone = displayTick();
-#if 1
-		if( msg_mode == MODE_ANIM && frameDone ) {
+		//bool frameDone = displayTick();
+		bool frameDone = matrix.update();
+#if 0
+		if( /*msg_mode == MODE_ANIM &&*/ frameDone ) {
 			counter++;
 			if(counter >= 5) {
 				counter = 0;
-				displayAnimTick();
+				//displayAnimTick();
+				matrix.animTick();
+				/*LedMatrixColor co(64, 0, 0);
+				matrix.setChar('H', co);*/
 #if 0
 				my_red_color++;
 				my_green_color += 2;
@@ -397,7 +418,8 @@ void SSP1_IRQHandler(void)
 					} else if( data == CMD_CLEAR_MSG ) {
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						set_message("", 0);
+						//set_message("", 0);
+						matrix.setMessage("", 0);
 						state = STATE_RESP_TO_IDLE1;
 					} else if( data == CMD_RESET ) {
 						state = STATE_IDLE;
@@ -433,7 +455,8 @@ void SSP1_IRQHandler(void)
 						//LPC_SSP1->DR = CMD_RESP_OK;
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						append_message((char*)data_buffer, data_count);
+						//append_message((char*)data_buffer, data_count);
+						matrix.appendMessage((char*)data_buffer, data_count);
 #ifdef DEBUG
 						printf("Got all data\r\n");
 						for(int i=0; i<data_count; i++) {
