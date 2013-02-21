@@ -138,30 +138,9 @@ int main(void)
 
 	printf("Entering loop\r\n");
 
-	//LED_GPIO->MASKED_ACCESS[LED] = LED;
 	while (1)
 	{
-		//displayTick();
 		system_sleep();
-		//LED_GPIO->MASKED_ACCESS[LED] = ~LED_GPIO->MASKED_ACCESS[LED];
-#if 0
-		FAST_GPIOPinWrite(LATCH_PORT, LATCH_PIN, LATCH_PIN);
-		for (count = 0; count < count_max; count++);	// delay
-		FAST_GPIOPinWrite(LATCH_PORT, LATCH_PIN, 0);
-		for (count = 0; count < count_max; count++);	// delay
-#endif
-#if 0
-		system_sleep();
-		//for (count = 0; count < count_max; count++);	// delay
-		//while( LPC_TMR16B0->TC > 10 );
-		//LED_gma = LED;						// instead of LED_GPIO->DATA |= LED;
-		LED_GPIO->MASKED_ACCESS[LED] = LED;
-		system_sleep();
-		//for (count = 0; count < count_max; count++);	// delay
-		//while( LPC_TMR16B0->TC > 10 );
-		//LED_gma = 0;						// instead of LED_GPIO->DATA &= ~LED;
-		LED_GPIO->MASKED_ACCESS[LED] = 0;
-#endif
 	}
 }
 
@@ -330,13 +309,9 @@ static void system_sleep(void)
 +=============================================================================+
 */
 
-uint32_t counter = 0;
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-static uint8_t my_red_color = 0;
-static uint8_t my_green_color = 0;
 
 void TIMER16_0_IRQHandler(void)
 {
@@ -344,30 +319,7 @@ void TIMER16_0_IRQHandler(void)
 	//NVIC_ClearPendingIRQ(TIMER_16_0_IRQn);
 	if( LPC_TMR16B0->IR & 0x01) {
 		LPC_TMR16B0->IR = 0x01;
-		//bool frameDone = displayTick();
-		bool frameDone = matrix.update();
-#if 0
-		if( /*msg_mode == MODE_ANIM &&*/ frameDone ) {
-			counter++;
-			if(counter >= 5) {
-				counter = 0;
-				//displayAnimTick();
-				matrix.animTick();
-				/*LedMatrixColor co(64, 0, 0);
-				matrix.setChar('H', co);*/
-#if 0
-				my_red_color++;
-				my_green_color += 2;
-				if ( my_red_color > 64)
-					my_red_color = 0;
-				if ( my_green_color > 64)
-					my_green_color = 0;
-				displayFillColor(COLOR(my_red_color, my_green_color, 0));
-				msg_mode = MODE_ANIM;
-#endif
-			}
-		}
-#endif
+		matrix.update();
 	}
 
 }
@@ -418,8 +370,7 @@ void SSP1_IRQHandler(void)
 					} else if( data == CMD_CLEAR_MSG ) {
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						//set_message("", 0);
-						matrix.setMessage("", 0);
+						matrix.setMessage((char*)"", 0);
 						state = STATE_RESP_TO_IDLE1;
 					} else if( data == CMD_RESET ) {
 						state = STATE_IDLE;

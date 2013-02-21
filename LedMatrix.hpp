@@ -66,8 +66,8 @@ public:
 	}
 
 	void update(LedMatrixFrameBuffer<R,C> &fb) {
-		for(int i=0; i<R; i++) {
-			for(int l=0; l<C-1; l++) {
+		for(unsigned int i=0; i<R; i++) {
+			for(unsigned int l=0; l<C-1; l++) {
 				fb.fb[i][l] = fb.fb[i][l+1];
 			}
 			fb.fb[i][C-1] = ((font.getFontData()[msgBuffer[nextChar]-32][i] >> (7-offset)) & 0x1) * currentColor.getValue();
@@ -92,6 +92,11 @@ public:
 		nextChar = 0;
 		currentColor = LedMatrixColor(0x3F, 0, 0);
 		parseColor();
+	}
+
+	void appendMessage(char *msg, uint16_t len) {
+		strncpy(msgBuffer+msgLen, msg, len);
+		msgLen += len;
 	}
 
 private:
@@ -141,8 +146,8 @@ public:
 		printf("\r\n");
 		putHex32((uint32_t)font.getFontData()[32]);
 		printf("\r\nGot data\r\n");
-		for(int i=0; i<R; i++) {
-			for(int l=0; l<C; l++) {
+		for(unsigned int i=0; i<R; i++) {
+			for(unsigned int l=0; l<C; l++) {
 				fb[i][l] = ((font.getFontData()[c-32][i] >> (C-1-l)) & 0x1) * color.getValue();
 			}
 		}
@@ -185,8 +190,8 @@ public:
 	}
 
 	void clear(LedMatrixColor &color) {
-		for(int i=0; i<R; i++) {
-			for(int l=0; l<C; l++) {
+		for(unsigned int i=0; i<R; i++) {
+			for(unsigned int l=0; l<C; l++) {
 				fb[i][l] = color.getValue();
 			}
 		}
@@ -194,7 +199,7 @@ public:
 
 private:
 	void shiftOut(const uint16_t b[8], uint8_t shift, uint8_t threshold) {
-		for(int i=0;i<8; i++) {
+		for(unsigned int i=0;i<8; i++) {
 			if( ((b[8-1-i] >> shift) & 0xFF) > threshold) {
 				FAST_GPIOPinWrite(SER_OUT_PORT, SER_OUT_PIN, SER_OUT_PIN);
 			} else {
@@ -206,7 +211,7 @@ private:
 	}
 
 	void rowReset(void) {
-		for(int i=0; i<R; i++) {
+		for(unsigned int i=0; i<R; i++) {
 			FAST_GPIOPinWrite(ROW_SER_OUT_PORT, ROW_SER_OUT_PIN, ROW_SER_OUT_PIN);
 
 			FAST_GPIOPinWrite(ROW_CLK_OUT_PORT, ROW_CLK_OUT_PIN, ROW_CLK_OUT_PIN);
@@ -256,22 +261,20 @@ public:
 		: animation(NULL),
 		  scrollAnim(defaultFont)
 	{
-		displayMode = STATIC;
 	}
 
 	inline void setChar(char c, LedMatrixColor &color) {
-		displayMode = STATIC;
 		frameBuffer.setChar(c, color, defaultFont);
 	}
 
 	void setMessage(char *str, uint16_t len) {
 		clear();
-		displayMode = ANIM;
 		scrollAnim.setMessage(str, len);
 		setAnimation(&scrollAnim, 5);
 	}
 
 	void appendMessage(char *str, uint16_t len) {
+		scrollAnim.appendMessage(str, len);
 	}
 
 	void clear() {
@@ -291,6 +294,7 @@ public:
 				animCountdown = animInterval;
 			}
 		}
+		return frameDone;
 	}
 
 	void animTick() {
@@ -309,12 +313,9 @@ public:
 	}
 	uint8_t getAnimationInterval();
 
-	enum DisplayMode { STATIC, ANIM };
-
 private:
 	T 				defaultFont;
 	LedMatrixAnimation<R,C>		*animation;
-	DisplayMode			displayMode;
 	LedMatrixFrameBuffer<R,C>	frameBuffer; 
 	LedMatrixScrollAnimation<R,C>	scrollAnim;
 	uint8_t				animInterval;
