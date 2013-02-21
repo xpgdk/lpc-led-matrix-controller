@@ -56,8 +56,14 @@ extern "C" {
 
 #include "LedMatrix.hpp"
 #include "LedMatrixSimpleFont.hpp"
+#include "TestAnimation.hpp"
 
-LedMatrix<LedMatrixSimpleFont,8,16> matrix;
+LedMatrixFrameBuffer<8,16>	frameBuffer;
+LedMatrixSimpleFont		defaultFont;
+LedMatrixScrollAnimation	scrollAnim(defaultFont);
+LedMatrix 			matrix(frameBuffer, defaultFont);
+
+LedMatrixTestAnimation		testAnimation(matrix, scrollAnim);
 
 /*
 +=============================================================================+
@@ -119,12 +125,15 @@ int main(void)
 	//displayInit();
 
 	//char s[] = "#F00H#220e#550l#FF0l#BF0o #0F0W#F00orld  ";
-	char s[] = "#3F00J#003Fo#203Fn#3F20a#3F00than #0A3FFleischer  ";
+	//char s[] = "#3F00J#003Fo#203Fn#3F20a#3F00than #0A3FFleischer  ";
 	//char s[] = "Jonathan Fleischer  ";
 	//char s[] = "#FF0EEEE     ";
-	//char s[] = "Hello World";
+	char s[] = "#3F00Hello #003FWorld";
 
-	matrix.setMessage(s, strlen(s));
+	matrix.setAnimation(&testAnimation, 1);
+	scrollAnim.setMessage(s, strlen(s));
+
+	//matrix.setMessage(s, strlen(s));
 	//LedMatrixColor color(0xA, 0x3F, 0x00);
 	//matrix.setChar('H', color);
 	//matrix.clear(color);
@@ -370,7 +379,7 @@ void SSP1_IRQHandler(void)
 					} else if( data == CMD_CLEAR_MSG ) {
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						matrix.setMessage((char*)"", 0);
+						scrollAnim.setMessage((char*)"", 0);
 						state = STATE_RESP_TO_IDLE1;
 					} else if( data == CMD_RESET ) {
 						state = STATE_IDLE;
@@ -407,7 +416,7 @@ void SSP1_IRQHandler(void)
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
 						//append_message((char*)data_buffer, data_count);
-						matrix.appendMessage((char*)data_buffer, data_count);
+						scrollAnim.appendMessage((char*)data_buffer, data_count);
 #ifdef DEBUG
 						printf("Got all data\r\n");
 						for(int i=0; i<data_count; i++) {

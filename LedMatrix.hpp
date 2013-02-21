@@ -11,8 +11,8 @@ extern "C" {
 #include "led_matrix_config.h"
 }
 
-template <class T, unsigned int R, unsigned int C> class LedMatrix;
 template <unsigned R, unsigned C> class LedMatrixFrameBuffer;
+class AbstractLedMatrixFrameBuffer;
 
 struct LedMatrixColor
 {
@@ -50,88 +50,21 @@ public:
 	int			getEnd(char c);
 };
 
-template<unsigned int R, unsigned int C>
-class LedMatrixAnimation
+class AbstractLedMatrixFrameBuffer
 {
 public:
-	virtual void update(LedMatrixFrameBuffer<R,C> &fb) = 0;
-};
-
-template<unsigned int R, unsigned int C>
-class LedMatrixScrollAnimation : public LedMatrixAnimation<R,C>
-{
-public:
-	LedMatrixScrollAnimation(LedMatrixFont &font) 
-		: font(font) {
-	}
-
-	void update(LedMatrixFrameBuffer<R,C> &fb) {
-		for(unsigned int i=0; i<R; i++) {
-			for(unsigned int l=0; l<C-1; l++) {
-				fb.fb[i][l] = fb.fb[i][l+1];
-			}
-			fb.fb[i][C-1] = ((font.getFontData()[msgBuffer[nextChar]-32][i] >> (7-offset)) & 0x1) * currentColor.getValue();
-		}
-		offset++;
-		if( offset >= font.getEnd(msgBuffer[nextChar]) ) {
-			nextChar++;
-			parseColor();
-
-			if( nextChar >= msgLen ) {
-				nextChar = 0;
-				parseColor();
-			}
-			offset = font.getStart(msgBuffer[nextChar]);
-		}
-	}
-
-	void setMessage(char *msg, uint16_t len) {
-		strncpy(msgBuffer, msg, len);
-		msgLen = len;
-		offset = 0;
-		nextChar = 0;
-		currentColor = LedMatrixColor(0x3F, 0, 0);
-		parseColor();
-	}
-
-	void appendMessage(char *msg, uint16_t len) {
-		strncpy(msgBuffer+msgLen, msg, len);
-		msgLen += len;
-	}
-
-private:
-	void parseColor() {
-		if( msgBuffer[nextChar] == '#' ) {
-			uint8_t r = (hexCharToInt(msgBuffer[nextChar+1]) << 4) +
-				    hexCharToInt(msgBuffer[nextChar+2]);
-			uint8_t g = (hexCharToInt(msgBuffer[nextChar+3]) << 4) +
-				    hexCharToInt(msgBuffer[nextChar+4]);
-			//uint8_t b = hexCharToInt(msg[next_char+3]);
-			currentColor = LedMatrixColor(r, g, 0);
-			nextChar += 5;
-		}
-	}
-
-	uint8_t hexCharToInt(char c) {
-		if( c >= 0x30 && c <= 0x39 ) {
-			return c-0x30;
-		} else if( c >= 0x41 && c <= 0x46 ) {
-			return 10 + (c-0x41);
-		}
-		return 0;
-	}
-
-private:
-	char 			msgBuffer[60];
-	uint16_t 		msgLen;
-	uint16_t		nextChar;
-	uint16_t		offset;
-	LedMatrixColor		currentColor;
-	LedMatrixFont		&font;
+	virtual uint16_t getRowCount() = 0;
+	virtual uint16_t getColCount() = 0;
+	virtual void setChar(char c, LedMatrixColor &color, LedMatrixFont &font) = 0;
+	virtual bool tick() = 0;
+	virtual void clear(LedMatrixColor &color) = 0;
+	virtual void clear() = 0;
+	virtual uint16_t* operator [](int index) = 0;
+	virtual void fillRow(uint16_t row, LedMatrixColor &color) = 0;
 };
 
 template <unsigned int R, unsigned int C>
-class LedMatrixFrameBuffer
+class LedMatrixFrameBuffer : public AbstractLedMatrixFrameBuffer
 {
 public:
 	LedMatrixFrameBuffer() {
@@ -140,12 +73,15 @@ public:
 		rowReset();
 	}
 
+	uint16_t getRowCount() {
+		return R;
+	}
+
+	uint16_t getColCount() {
+		return C;
+	}
+
 	void setChar(char c, LedMatrixColor &color, LedMatrixFont &font) {
-		printf("Entering\r\n");
-		putHex16(color.getValue());
-		printf("\r\n");
-		putHex32((uint32_t)font.getFontData()[32]);
-		printf("\r\nGot data\r\n");
 		for(unsigned int i=0; i<R; i++) {
 			for(unsigned int l=0; l<C; l++) {
 				fb[i][l] = ((font.getFontData()[c-32][i] >> (C-1-l)) & 0x1) * color.getValue();
@@ -195,6 +131,21 @@ public:
 				fb[i][l] = color.getValue();
 			}
 		}
+	}
+
+	void clear() {
+		LedMatrixColor blank(0,0,0);
+		clear(blank);
+	}
+
+	void fillRow(uint16_t row, LedMatrixColor &color) {
+		for(uint16_t c = 0; c<getColCount(); c++) {
+			fb[row][c] = color.getValue();
+		}
+	}
+
+	uint16_t* operator [](int index) {
+		return (uint16_t*)fb[index];
 	}
 
 private:
@@ -252,29 +203,103 @@ public:
 	uint16_t	fb[R][C]; // Holds actual framebuffer data
 };
 
+class LedMatrixAnimation
+{
+public:
+	virtual void reset() = 0;
+	virtual bool update(AbstractLedMatrixFrameBuffer &fb) = 0;
+};
 
-template <class T, unsigned int R, unsigned int C>
+class LedMatrixScrollAnimation : public LedMatrixAnimation
+{
+public:
+	LedMatrixScrollAnimation(LedMatrixFont &font) 
+		: msgLen(0), font(font) {
+	}
+
+	void reset() {
+		offset = 0;
+		nextChar = 0;
+		currentColor = LedMatrixColor(0x3F, 0, 0);
+		parseColor();
+	}
+
+	bool update(AbstractLedMatrixFrameBuffer &fb) {
+		bool restarted = false;
+		for(uint16_t i=0; i<fb.getRowCount(); i++) {
+			for(uint16_t l=0; l<fb.getColCount()-1; l++) {
+				fb[i][l] = fb[i][l+1];
+			}
+			fb[i][fb.getColCount()-1] = ((font.getFontData()[msgBuffer[nextChar]-32][i] >> (7-offset)) & 0x1) * currentColor.getValue();
+		}
+		offset++;
+		if( offset >= font.getEnd(msgBuffer[nextChar]) ) {
+			nextChar++;
+			parseColor();
+
+			if( nextChar >= msgLen ) {
+				nextChar = 0;
+				restarted = true;
+				parseColor();
+			}
+			offset = font.getStart(msgBuffer[nextChar]);
+		}
+		return restarted;
+	}
+
+	void setMessage(char *msg, uint16_t len) {
+		strncpy(msgBuffer, msg, len);
+		msgLen = len;
+		reset();
+	}
+
+	void appendMessage(char *msg, uint16_t len) {
+		strncpy(msgBuffer+msgLen, msg, len);
+		msgLen += len;
+	}
+
+private:
+	void parseColor() {
+		if( msgBuffer[nextChar] == '#' ) {
+			uint8_t r = (hexCharToInt(msgBuffer[nextChar+1]) << 4) +
+				    hexCharToInt(msgBuffer[nextChar+2]);
+			uint8_t g = (hexCharToInt(msgBuffer[nextChar+3]) << 4) +
+				    hexCharToInt(msgBuffer[nextChar+4]);
+			currentColor = LedMatrixColor(r, g, 0);
+			nextChar += 5;
+		}
+	}
+
+	uint8_t hexCharToInt(char c) {
+		if( c >= 0x30 && c <= 0x39 ) {
+			return c-0x30;
+		} else if( c >= 0x41 && c <= 0x46 ) {
+			return 10 + (c-0x41);
+		}
+		return 0;
+	}
+
+private:
+	char 			msgBuffer[60];
+	uint16_t 		msgLen;
+	uint16_t		nextChar;
+	uint16_t		offset;
+	LedMatrixColor		currentColor;
+	LedMatrixFont		&font;
+};
+
+
+
 class LedMatrix
 {
 public:
-	LedMatrix() 
-		: animation(NULL),
-		  scrollAnim(defaultFont)
+	LedMatrix(AbstractLedMatrixFrameBuffer &fb, LedMatrixFont &font) 
+		: defaultFont(font), frameBuffer(fb), animation(NULL)
 	{
 	}
 
 	inline void setChar(char c, LedMatrixColor &color) {
 		frameBuffer.setChar(c, color, defaultFont);
-	}
-
-	void setMessage(char *str, uint16_t len) {
-		clear();
-		scrollAnim.setMessage(str, len);
-		setAnimation(&scrollAnim, 5);
-	}
-
-	void appendMessage(char *str, uint16_t len) {
-		scrollAnim.appendMessage(str, len);
 	}
 
 	void clear() {
@@ -303,7 +328,7 @@ public:
 		}
 	}
 
-	void setAnimation(LedMatrixAnimation<R,C> *animation, uint8_t interval) {
+	void setAnimation(LedMatrixAnimation *animation, uint8_t interval) {
 		animInterval = interval;
 		if( animInterval == 0 ) {
 			animInterval = 1;
@@ -311,13 +336,21 @@ public:
 		animCountdown = animInterval;
 		this->animation = animation;
 	}
+
+	void setAnimationInterval(uint8_t interval) {
+		animInterval = interval;
+		if( animInterval == 0 ) {
+			animInterval = 1;
+		}
+		animCountdown = animInterval;
+	}
+
 	uint8_t getAnimationInterval();
 
 private:
-	T 				defaultFont;
-	LedMatrixAnimation<R,C>		*animation;
-	LedMatrixFrameBuffer<R,C>	frameBuffer; 
-	LedMatrixScrollAnimation<R,C>	scrollAnim;
+	LedMatrixFont 			&defaultFont;
+	AbstractLedMatrixFrameBuffer	&frameBuffer; 
+	LedMatrixAnimation		*animation;
 	uint8_t				animInterval;
 	uint8_t				animCountdown;
 
