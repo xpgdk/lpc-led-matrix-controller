@@ -57,13 +57,15 @@ extern "C" {
 #include "LedMatrix.hpp"
 #include "LedMatrixSimpleFont.hpp"
 #include "TestAnimation.hpp"
+#include "PulseAnimation.hpp"
 
-LedMatrixFrameBuffer<8,16>	frameBuffer;
+LedMatrixFrameBuffer<16,16>	frameBuffer;
 LedMatrixSimpleFont		defaultFont;
 LedMatrixScrollAnimation	scrollAnim(defaultFont);
 LedMatrix 			matrix(frameBuffer, defaultFont);
 
 LedMatrixTestAnimation		testAnimation(matrix, scrollAnim);
+PulseAnimation			pulseAnimation;
 
 /*
 +=============================================================================+
@@ -101,9 +103,9 @@ int main(void)
 
 	// We want 50 frames per second.
 	// Each frame takes ROW_COUNT*COLOR_LEVELS updates
-	// = 8 * 64 = 512 updates
+	// = 16 * 64 = 512 updates
 	// We thus need a frequency of 512 * 50 = 25600 = 25.6KHz
-	LPC_TMR16B0->PR = 45; // We run at 50MHz, scale down to 1.1MHz
+	LPC_TMR16B0->PR = 25; // We run at 50MHz, scale down to 1.1MHz
 	LPC_TMR16B0->MR0 = 40; // 27.78KHz
 	LPC_TMR16B0->MCR = TMR16_MCR_MR0I | TMR16_MCR_MR0R;
 	LPC_TMR16B0->TCR |= TMR16_TCR_CEN; // Enable timer
@@ -122,6 +124,7 @@ int main(void)
 	ROW_LATCH_PORT->DIR |= ROW_LATCH_PIN;
 	ROW_ENABLE_PORT->DIR |= ROW_ENABLE_PIN;
 
+	FAST_GPIOPinWrite(ROW_ENABLE_PORT, ROW_ENABLE_PIN, 0);
 	//displayInit();
 
 	//char s[] = "#F00H#220e#550l#FF0l#BF0o #0F0W#F00orld  ";
@@ -130,7 +133,7 @@ int main(void)
 	//char s[] = "#FF0EEEE     ";
 	char s[] = "#3F00Hello #003FWorld";
 
-	matrix.setAnimation(&testAnimation, 1);
+	matrix.setAnimation(&pulseAnimation, 2);
 	scrollAnim.setMessage(s, strlen(s));
 
 	//matrix.setMessage(s, strlen(s));

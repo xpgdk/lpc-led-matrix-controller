@@ -8,7 +8,7 @@ public:
 	LedMatrixTestAnimation(LedMatrix &matrix, LedMatrixAnimation &anim1)
 		: matrix(matrix), animation1(anim1),
 	 	  mode(CLEAR),
-		  yellow(0x5, 64,0) {
+		  yellow(4, 32,0) {
 			  matrix.setAnimationInterval(1);
 	}
 
@@ -19,11 +19,11 @@ public:
 				counter++;
 
 				{
-					LedMatrixColor color(0x6, counter, 0x00);
+					LedMatrixColor color(3, counter, 0x00);
 					fb.clear(color);
 				}
 
-				if( counter > 64 ) {
+				if( counter > 32 ) {
 					matrix.setAnimationInterval(5);
 					mode = ANIM1;
 					counter = 0;

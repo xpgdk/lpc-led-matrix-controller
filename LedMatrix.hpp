@@ -92,13 +92,15 @@ public:
 	bool tick() {
 		const uint16_t *dots = fb[currentRow];
 
-		shiftOut(dots, 0, currentIntensity);
-		shiftOut(dots + 8, 0, currentIntensity);
+		for(uint16_t r=0; r<C/8; r++) {
+			shiftOut(dots+r*8, 0, currentIntensity);
+		}
 
-		shiftOut(dots, 8, currentIntensity);
-		shiftOut(dots + 8, 8, currentIntensity);
+		for(uint16_t r=0; r<C/8; r++) {
+			shiftOut(dots+r*8, 8, currentIntensity);
+		}
 
-		FAST_GPIOPinWrite(ROW_ENABLE_PORT, ROW_ENABLE_PIN, ROW_ENABLE_PIN);
+		//FAST_GPIOPinWrite(ROW_ENABLE_PORT, ROW_ENABLE_PIN, ROW_ENABLE_PIN);
 		if( currentRow == 0 ) {
 			rowFirstTick();
 		} else {
@@ -107,14 +109,14 @@ public:
 
 		rowLatch();
 		colLatch();
-		FAST_GPIOPinWrite(ROW_ENABLE_PORT, ROW_ENABLE_PIN, 0);
+		//FAST_GPIOPinWrite(ROW_ENABLE_PORT, ROW_ENABLE_PIN, 0);
 
 		currentRow++;
 		if( currentRow >= R ) {
 			currentIntensity++;
 			currentRow = 0;
 
-			if( currentIntensity > (64-1) ) {
+			if( currentIntensity > (32-1) ) {
 				currentIntensity = 0;
 			}
 		}
@@ -149,9 +151,12 @@ public:
 	}
 
 private:
-	void shiftOut(const uint16_t b[8], uint8_t shift, uint8_t threshold) {
+	inline void shiftOut(const uint16_t b[8], uint8_t shift, uint8_t threshold) {
+		uint16_t mask = 0xFF << shift;
+		uint16_t mt = threshold << shift;
 		for(unsigned int i=0;i<8; i++) {
-			if( ((b[8-1-i] >> shift) & 0xFF) > threshold) {
+			//if( ((b[8-1-i] >> shift) & 0xFF) > threshold) {
+			if( (b[8-1-i] & mask) > mt) {
 				FAST_GPIOPinWrite(SER_OUT_PORT, SER_OUT_PIN, SER_OUT_PIN);
 			} else {
 				FAST_GPIOPinWrite(SER_OUT_PORT, SER_OUT_PIN, 0);
@@ -226,11 +231,12 @@ public:
 
 	bool update(AbstractLedMatrixFrameBuffer &fb) {
 		bool restarted = false;
-		for(uint16_t i=0; i<fb.getRowCount(); i++) {
+		uint16_t start = fb.getRowCount()/2-4;
+		for(uint16_t i=0; i<8; i++) {
 			for(uint16_t l=0; l<fb.getColCount()-1; l++) {
-				fb[i][l] = fb[i][l+1];
+				fb[start+i][l] = fb[start+i][l+1];
 			}
-			fb[i][fb.getColCount()-1] = ((font.getFontData()[msgBuffer[nextChar]-32][i] >> (7-offset)) & 0x1) * currentColor.getValue();
+			fb[start+i][fb.getColCount()-1] = ((font.getFontData()[msgBuffer[nextChar]-32][i] >> (7-offset)) & 0x1) * currentColor.getValue();
 		}
 		offset++;
 		if( offset >= font.getEnd(msgBuffer[nextChar]) ) {
