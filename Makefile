@@ -60,7 +60,7 @@ LIBS = -lc -lgcc
 
 # additional directories with source files (absolute or relative paths to
 # folders with source files, current folder is always included)
-SRCS_DIRS =
+SRCS_DIRS = led-matrix-lib
 
 # extension of C++ files
 CXX_EXT = cpp

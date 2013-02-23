@@ -54,10 +54,10 @@ extern "C" {
 #include "led_matrix_config.h"
 }
 
-#include "LedMatrix.hpp"
-#include "LedMatrixSimpleFont.hpp"
-#include "TestAnimation.hpp"
-#include "PulseAnimation.hpp"
+#include "led-matrix-lib/LedMatrix.hpp"
+#include "led-matrix-lib/LedMatrixSimpleFont.hpp"
+#include "led-matrix-lib/TestAnimation.hpp"
+#include "led-matrix-lib/PulseAnimation.hpp"
 
 LedMatrixFrameBuffer<16,16>	frameBuffer;
 LedMatrixSimpleFont		defaultFont;

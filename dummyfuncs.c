@@ -1,7 +1,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "uart.h"
-#include "utils.h"
+#include "led-matrix-lib/utils.h"
 
 void _exit(int status) {
 	printf("_exit called\r\n");
