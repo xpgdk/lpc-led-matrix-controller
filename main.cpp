@@ -59,7 +59,7 @@ extern "C" {
 #include "led-matrix-lib/TestAnimation.hpp"
 #include "led-matrix-lib/PulseAnimation.hpp"
 
-LedMatrixFrameBuffer<16,16>	frameBuffer;
+LedMatrixFrameBuffer<8,32,32>	frameBuffer;
 LedMatrixSimpleFont		defaultFont;
 LedMatrixScrollAnimation	scrollAnim(defaultFont);
 LedMatrix 			matrix(frameBuffer, defaultFont);
@@ -106,7 +106,7 @@ int main(void)
 	// = 16 * 64 = 512 updates
 	// We thus need a frequency of 512 * 50 = 25600 = 25.6KHz
 	LPC_TMR16B0->PR = 25; // We run at 50MHz, scale down to 1.1MHz
-	LPC_TMR16B0->MR0 = 40; // 27.78KHz
+	LPC_TMR16B0->MR0 = 100; // 27.78KHz
 	LPC_TMR16B0->MCR = TMR16_MCR_MR0I | TMR16_MCR_MR0R;
 	LPC_TMR16B0->TCR |= TMR16_TCR_CEN; // Enable timer
 
@@ -133,7 +133,7 @@ int main(void)
 	//char s[] = "#FF0EEEE     ";
 	char s[] = "#3F00Hello #003FWorld";
 
-	matrix.setAnimation(&pulseAnimation, 2);
+	matrix.setAnimation(&scrollAnim, 6);
 	scrollAnim.setMessage(s, strlen(s));
 
 	//matrix.setMessage(s, strlen(s));
