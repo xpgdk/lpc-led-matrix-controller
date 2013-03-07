@@ -4,6 +4,8 @@ import serial
 import threading
 import time
 
+from PIL import Image
+
 class SerialLedControl:
 	def __init__(self, device):
 		self.running = True
@@ -48,6 +50,10 @@ class SerialLedControl:
 		while not got.endswith(expected):
 			got = got + self.serial.read(1)
 
+	def sendW(self, str):
+		self.send(str + "\r")
+		self.waitFor("SPI> ")
+
 	def set_message(self, msg):
 		print "LEN: "+ str(len(msg))
 		cmd = "[2 " + str(len(msg)) + " "
@@ -62,16 +68,71 @@ class SerialLedControl:
 		self.send("[3 0 r:1]\r")
 		self.waitFor("SPI> ")
 
+	def put_pixels(self, startX, startY, endX, endY):
+		startXhigh = str((startX >> 8) & 0xFF)
+		startXlow = str(startX & 0xFF)
+		startYhigh = str((startY >> 8) & 0xFF)
+		startYlow = str(startY & 0xFF)
+
+		endXhigh = str((endX >> 8) & 0xFF)
+		endXlow = str(endX & 0xFF)
+		endYhigh = str((endY >> 8) & 0xFF)
+		endYlow = str(endY & 0xFF)
+
+		self.sendW("[ 4 ")
+		self.sendW(startXhigh + " " + startXlow + " ")
+		self.sendW(startYhigh + " " + startYlow + " ")
+		self.sendW(endXhigh + " " + endXlow + " ")
+		self.sendW(endYhigh + " " + endYlow + " ")
+
+		pixelCount = (endX-startX)*(endY-startY)
+
+		for c in range(0, pixelCount):
+			print c
+			self.sendW("32 0 ")
+		self.sendW("]")
+
+	def send_image(self, filename, startX, startY, endX, endY):
+		image = Image.open(filename)
+		px = image.load()
+
+		startXhigh = str((startX >> 8) & 0xFF)
+		startXlow = str(startX & 0xFF)
+		startYhigh = str((startY >> 8) & 0xFF)
+		startYlow = str(startY & 0xFF)
+
+		endXhigh = str((endX >> 8) & 0xFF)
+		endXlow = str(endX & 0xFF)
+		endYhigh = str((endY >> 8) & 0xFF)
+		endYlow = str(endY & 0xFF)
+
+		self.sendW("[ 4 ")
+		self.sendW(startXhigh + " " + startXlow + " ")
+		self.sendW(startYhigh + " " + startYlow + " ")
+		self.sendW(endXhigh + " " + endXlow + " ")
+		self.sendW(endYhigh + " " + endYlow + " ")
+
+		for y in range(startY, endY):
+			for x in range(startX, endX):
+				pixel = px[x,y]
+				r = pixel[0]
+				g = pixel[1]
+				r = int(r/255.0 * 32)
+				g = int(g/255.0 * 32)
+				#print "Red: ",pixel[0],"=",r
+				self.sendW(str(r) + " " + str(g) + " ")
+		self.sendW("]")
+
+
 control = SerialLedControl("/dev/ttyACM0")
 control.send('\r')
 control.expect("\nSPI> ")
 control.send('\r')
 control.expect("\nSPI> ")
-#control.send("[1 1 1 1\r\n]")
-#control.send('[2 3 66 67 65 0 r:1]\r\n')
 control.clear_message()
-control.set_message("#F00Hej ")
-control.set_message("#0F0m#F00ed ")
-control.set_message("#FF0d#0F0ig ")
-control.set_message("Marie! ")
+#control.put_pixels(0, 0, 20, 5)
+control.send_image("test.png", 0, 0, 32, 8)
+#control.set_message("#2000Hej ")
+#control.set_message("med ")
+#control.set_message("dig ")
 control.shutdown()
