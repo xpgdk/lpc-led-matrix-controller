@@ -52,20 +52,21 @@ extern "C" {
 extern "C" {
 //#include "led_matrix.h"
 #include "led_matrix_config.h"
-}
-
+} 
 #include "led-matrix-lib/LedMatrix.hpp"
 #include "led-matrix-lib/LedMatrixSimpleFont.hpp"
 #include "led-matrix-lib/TestAnimation.hpp"
 #include "led-matrix-lib/PulseAnimation.hpp"
 
-LedMatrixFrameBuffer<8,32,32>	frameBuffer;
+LedMatrixFrameBuffer<8,32,32>	frameBuffer[2];
 LedMatrixSimpleFont		defaultFont;
 LedMatrixScrollAnimation	scrollAnim(defaultFont);
-LedMatrix 			matrix(frameBuffer, defaultFont);
+LedMatrix 			matrix(frameBuffer[0], defaultFont);
 
 LedMatrixTestAnimation		testAnimation(matrix, scrollAnim);
 PulseAnimation			pulseAnimation;
+
+uint8_t				currentFrameBuffer;
 
 //#define DEBUG
 
@@ -137,6 +138,9 @@ int main(void)
 
 	matrix.setAnimation(&scrollAnim, 6);
 	scrollAnim.setMessage(s, strlen(s));
+
+	currentFrameBuffer = 0;
+	matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
 
 	//matrix.setMessage(s, strlen(s));
 	//LedMatrixColor color(0xA, 0x3F, 0x00);
@@ -348,6 +352,7 @@ void TIMER16_0_IRQHandler(void)
 #define CMD_APPEND_MSG		0x02
 #define CMD_CLEAR_MSG		0x03
 #define CMD_PUT_RECT_MSG        0x04
+#define CMD_FLIP_MSG		0x05
 
 #define CMD_RESP_OK		0x01
 #define CMD_RESP_ERR		0xFF
@@ -395,13 +400,21 @@ void SSP1_IRQHandler(void)
 					} else if( data == CMD_CLEAR_MSG ) {
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						matrix.clear();
+						//matrix.clear();
+						frameBuffer[!currentFrameBuffer].clear();
 						matrix.clearAnimation();
 						//scrollAnim.setMessage((char*)"", 0);
 						state = STATE_RESP_TO_IDLE1;
                                         } else if( data == CMD_PUT_RECT_MSG) {
                                                 state = STATE_MESSAGE_PUT_RECT_ARGS;
                                                 current_data_count = 0;
+					} else if( data == CMD_FLIP_MSG) {
+						//frameBuffer.flipBuffers();
+						currentFrameBuffer = !currentFrameBuffer;
+						matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
+						nextOutByte = CMD_RESP_OK;
+						slaveEnable = true;
+						state = STATE_RESP_TO_IDLE1;
 					} else if( data == CMD_RESET ) {
 						state = STATE_IDLE;
 					} else {
@@ -482,8 +495,8 @@ void SSP1_IRQHandler(void)
 						uint16_t r = data_buffer[0];
 						uint16_t g = data_buffer[1];
 						LedMatrixColor color(r,g, 0);
-						uint16_t y = (current_data_count/2)/(endX-startX);
-						uint16_t x = (current_data_count/2)%(endX-startX);
+						uint16_t y = ((current_data_count/2)/(endX-startX)) + startY;
+						uint16_t x = ((current_data_count/2)%(endX-startX)) + startX;
 #ifdef DEBUG
 						printf("Drawing pixel at ");
 						putHex16(x);
@@ -491,7 +504,8 @@ void SSP1_IRQHandler(void)
 						putHex16(y);
 						printf("\r\n");
 #endif
-						matrix.getFrameBuffer().putPixel(x,y,color);
+						//matrix.getFrameBuffer().putPixel(x,y,color);
+						frameBuffer[!currentFrameBuffer].putPixel(x,y,color);
 					}
 					current_data_count++;
 					if( current_data_count >= data_count ) {
@@ -526,7 +540,6 @@ void SSP1_IRQHandler(void)
 void
 PIOINT2_IRQHandler(void) {
   LPC_GPIO2->IC |= (1<<0);
-  printf("Slave de-selected\r\n");
   state = STATE_IDLE;
   while( LPC_SSP1->SR & SSP_SR_RNE ) {
     uint8_t data = (uint8_t)(LPC_SSP1->DR & 0xFF);

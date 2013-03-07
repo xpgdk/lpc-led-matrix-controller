@@ -68,6 +68,10 @@ class SerialLedControl:
 		self.send("[3 0 r:1]\r")
 		self.waitFor("SPI> ")
 
+	def flip(self):
+		self.send("[5 0 r:1]\r")
+		self.waitFor("SPI> ")
+
 	def put_pixels(self, startX, startY, endX, endY):
 		startXhigh = str((startX >> 8) & 0xFF)
 		startXlow = str(startX & 0xFF)
@@ -131,7 +135,8 @@ control.send('\r')
 control.expect("\nSPI> ")
 control.clear_message()
 #control.put_pixels(0, 0, 20, 5)
-control.send_image("test.png", 0, 0, 32, 8)
+control.send_image("test.png", 8, 0, 12, 5)
+control.flip()
 #control.set_message("#2000Hej ")
 #control.set_message("med ")
 #control.set_message("dig ")
