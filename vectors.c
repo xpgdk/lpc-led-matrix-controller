@@ -162,7 +162,7 @@ void __Reserved_0xAC_Handler(void) __attribute__ ((interrupt, weak, alias("__Def
 void PIOINT3_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // PIO INT2 interrupt
-void PIOINT2_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
+void PIOINT2_IRQHandler(void) __attribute__ ((interrupt)); //, weak, alias("__Default_Handler")));
 
 // PIO INT1 interrupt
 void PIOINT1_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));

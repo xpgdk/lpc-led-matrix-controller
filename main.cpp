@@ -67,6 +67,8 @@ LedMatrix 			matrix(frameBuffer, defaultFont);
 LedMatrixTestAnimation		testAnimation(matrix, scrollAnim);
 PulseAnimation			pulseAnimation;
 
+//#define DEBUG
+
 /*
 +=============================================================================+
 | module variables
@@ -145,8 +147,14 @@ int main(void)
 	//displayFillColor(COLOR(20, 0, 0));
 	//msg_mode = MODE_ANIM;
 
+        LPC_GPIO2->IS &= ~(1<<0);
+        LPC_GPIO2->IBE &= ~(1<<0);
+        LPC_GPIO2->IEV |= (1<<0);
+        LPC_GPIO2->IE |= (1<<0);
+
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
 	NVIC_EnableIRQ(SSP1_IRQn);
+        NVIC_EnableIRQ(EINT2_IRQn);
 
 	printf("Entering loop\r\n");
 
@@ -272,7 +280,7 @@ static void system_init(void)
 	/* Configure UART */
 	// Select UART_PCLK to 50Mhz
 	LPC_SYSCON->UARTCLKDIV = 1; // 8-bit divider
-	LPC_SYSCON->SSP1CLKDIV = 1;
+	LPC_SYSCON->SSP1CLKDIV = 2;
 
 	LPC_UART->LCR |= UART_LCR_DLAB;
 	// Baud rate is defined by:
@@ -339,6 +347,7 @@ void TIMER16_0_IRQHandler(void)
 #define CMD_RESET		0x01
 #define CMD_APPEND_MSG		0x02
 #define CMD_CLEAR_MSG		0x03
+#define CMD_PUT_RECT_MSG        0x04
 
 #define CMD_RESP_OK		0x01
 #define CMD_RESP_ERR		0xFF
@@ -347,14 +356,18 @@ void TIMER16_0_IRQHandler(void)
 #define STATE_MESSAGE_CMD			0x01
 #define STATE_MESSAGE_CMD_RDY_FOR_DATA	0x02
 #define STATE_MESSAGE_CMD_DATA		0x03
+#define STATE_MESSAGE_PUT_RECT_ARGS     0x04
+#define STATE_MESSAGE_PUT_RECT_DATA     0x05
 #define STATE_RESP_TO_IDLE1		0xFD
 #define STATE_RESP_TO_IDLE2		0xFE
 #define STATE_INVALID			0xFF
 
 static uint16_t state = STATE_IDLE;
-static uint8_t data_buffer[50];
-static uint8_t data_count;
-static uint8_t current_data_count;
+static uint8_t data_buffer[100];
+static uint16_t data_count;
+static uint16_t current_data_count;
+
+static uint16_t startX, startY, endX, endY;
 
 void SSP1_IRQHandler(void)
 {
@@ -382,8 +395,13 @@ void SSP1_IRQHandler(void)
 					} else if( data == CMD_CLEAR_MSG ) {
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
-						scrollAnim.setMessage((char*)"", 0);
+						matrix.clear();
+						matrix.clearAnimation();
+						//scrollAnim.setMessage((char*)"", 0);
 						state = STATE_RESP_TO_IDLE1;
+                                        } else if( data == CMD_PUT_RECT_MSG) {
+                                                state = STATE_MESSAGE_PUT_RECT_ARGS;
+                                                current_data_count = 0;
 					} else if( data == CMD_RESET ) {
 						state = STATE_IDLE;
 					} else {
@@ -431,6 +449,57 @@ void SSP1_IRQHandler(void)
 						state = STATE_RESP_TO_IDLE1;
 					}
 				break;
+                                case STATE_MESSAGE_PUT_RECT_ARGS:
+                                  data_buffer[current_data_count] = data;
+                                  current_data_count++;
+                                  if( current_data_count >= 8 ) {
+                                    startX = (data_buffer[0] << 8) | data_buffer[1];
+                                    startY = (data_buffer[2] << 8) | data_buffer[3];
+                                    endX = (data_buffer[4] << 8) | data_buffer[5];
+                                    endY = (data_buffer[6] << 8) | data_buffer[7];
+                                    data_count = (endX-startX)*(endY-startY)*2;
+                                    current_data_count = 0;
+#ifdef DEBUG
+                                    printf("Drawing from (");
+                                    putHex16(startX);
+                                    printf(",");
+                                    putHex16(startY);
+                                    printf(") to (");
+                                    putHex16(endX);
+                                    printf(",");
+                                    putHex16(endY);
+                                    printf(")\r\n");
+                                    printf("Expecting ");
+                                    putHex16(data_count);
+                                    printf(" bytes\r\n");
+#endif
+                                    state = STATE_MESSAGE_PUT_RECT_DATA;
+                                  }
+                                break;
+                                case STATE_MESSAGE_PUT_RECT_DATA:
+					data_buffer[current_data_count%2] = data;
+					if( current_data_count % 2 == 1 ) {
+						uint16_t r = data_buffer[0];
+						uint16_t g = data_buffer[1];
+						LedMatrixColor color(r,g, 0);
+						uint16_t y = (current_data_count/2)/(endX-startX);
+						uint16_t x = (current_data_count/2)%(endX-startX);
+#ifdef DEBUG
+						printf("Drawing pixel at ");
+						putHex16(x);
+						printf(",");
+						putHex16(y);
+						printf("\r\n");
+#endif
+						matrix.getFrameBuffer().putPixel(x,y,color);
+					}
+					current_data_count++;
+					if( current_data_count >= data_count ) {
+						nextOutByte = CMD_RESP_OK;
+						slaveEnable = true;
+						state = STATE_RESP_TO_IDLE1;
+					}
+                                break;
 				case STATE_INVALID:
 					if( data == CMD_RESET ) {
 						state = STATE_IDLE;
@@ -438,9 +507,9 @@ void SSP1_IRQHandler(void)
 					} else {
 						/*LPC_SSP1->CR1 &= ~SSP_CR1_SOD;
 						LPC_SSP1->DR = CMD_RESP_ERR;*/
-						/*printf("Ignoring data in invalid state: ");
+						printf("Ignoring data in invalid state: ");
 						putHex8(data);
-						printf("\r\n");*/
+						printf("\r\n");
 					}
 				break;
 			}
@@ -452,6 +521,17 @@ void SSP1_IRQHandler(void)
 			}
 		}
 	}	
+}
+
+void
+PIOINT2_IRQHandler(void) {
+  LPC_GPIO2->IC |= (1<<0);
+  printf("Slave de-selected\r\n");
+  state = STATE_IDLE;
+  while( LPC_SSP1->SR & SSP_SR_RNE ) {
+    uint8_t data = (uint8_t)(LPC_SSP1->DR & 0xFF);
+  }
+  LPC_SSP1->CR1 |= SSP_CR1_SOD;
 }
 
 #ifdef __cplusplus
