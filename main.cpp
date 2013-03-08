@@ -284,7 +284,7 @@ static void system_init(void)
 	/* Configure UART */
 	// Select UART_PCLK to 50Mhz
 	LPC_SYSCON->UARTCLKDIV = 1; // 8-bit divider
-	LPC_SYSCON->SSP1CLKDIV = 2;
+	LPC_SYSCON->SSP1CLKDIV = 1;
 
 	LPC_UART->LCR |= UART_LCR_DLAB;
 	// Baud rate is defined by:
@@ -374,6 +374,10 @@ static uint16_t current_data_count;
 
 static uint16_t startX, startY, endX, endY;
 
+#define SCREEN_OFFSET_X		8
+#define SCREEN_OFFSET_Y		0
+#define SCREEN_ROTATE		0
+
 void SSP1_IRQHandler(void)
 {
 	if( LPC_SSP1->MIS & SSP_MIS_RXMIS ||
@@ -402,7 +406,6 @@ void SSP1_IRQHandler(void)
 						slaveEnable = true;
 						//matrix.clear();
 						frameBuffer[!currentFrameBuffer].clear();
-						matrix.clearAnimation();
 						//scrollAnim.setMessage((char*)"", 0);
 						state = STATE_RESP_TO_IDLE1;
                                         } else if( data == CMD_PUT_RECT_MSG) {
@@ -412,6 +415,7 @@ void SSP1_IRQHandler(void)
 						//frameBuffer.flipBuffers();
 						currentFrameBuffer = !currentFrameBuffer;
 						matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
+						matrix.clearAnimation();
 						nextOutByte = CMD_RESP_OK;
 						slaveEnable = true;
 						state = STATE_RESP_TO_IDLE1;
@@ -497,6 +501,13 @@ void SSP1_IRQHandler(void)
 						LedMatrixColor color(r,g, 0);
 						uint16_t y = ((current_data_count/2)/(endX-startX)) + startY;
 						uint16_t x = ((current_data_count/2)%(endX-startX)) + startX;
+						x -= SCREEN_OFFSET_X;
+						y -= SCREEN_OFFSET_Y;
+#if SCREEN_ROTATE
+						uint16_t tmp = x;
+						x = y;
+						y = tmp;
+#endif
 #ifdef DEBUG
 						printf("Drawing pixel at ");
 						putHex16(x);
@@ -505,7 +516,10 @@ void SSP1_IRQHandler(void)
 						printf("\r\n");
 #endif
 						//matrix.getFrameBuffer().putPixel(x,y,color);
-						frameBuffer[!currentFrameBuffer].putPixel(x,y,color);
+						if( x <= frameBuffer[!currentFrameBuffer].getColCount() &&
+						    y <= frameBuffer[!currentFrameBuffer].getRowCount() ) {
+							frameBuffer[!currentFrameBuffer].putPixel(x,y,color);
+						}
 					}
 					current_data_count++;
 					if( current_data_count >= data_count ) {
