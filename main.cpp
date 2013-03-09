@@ -58,7 +58,16 @@ extern "C" {
 #include "led-matrix-lib/TestAnimation.hpp"
 #include "led-matrix-lib/PulseAnimation.hpp"
 
-LedMatrixFrameBuffer<8,32,32>	frameBuffer[2];
+#define SPI0
+#undef SPI1
+
+#ifdef SPI0
+#define SSP LPC_SSP0
+#else
+#define SSP LPC_SSP1
+#endif
+
+LedMatrixFrameBuffer<8,16,32>	frameBuffer[2];
 LedMatrixSimpleFont		defaultFont;
 LedMatrixScrollAnimation	scrollAnim(defaultFont);
 LedMatrix 			matrix(frameBuffer[0], defaultFont);
@@ -151,14 +160,23 @@ int main(void)
 	//displayFillColor(COLOR(20, 0, 0));
 	//msg_mode = MODE_ANIM;
 
+#ifdef SPI1
         LPC_GPIO2->IS &= ~(1<<0);
         LPC_GPIO2->IBE &= ~(1<<0);
         LPC_GPIO2->IEV |= (1<<0);
         LPC_GPIO2->IE |= (1<<0);
+#else
+        LPC_GPIO0->IS &= ~(1<<2);
+        LPC_GPIO0->IBE &= ~(1<<2);
+        LPC_GPIO0->IEV |= (1<<2);
+        LPC_GPIO0->IE |= (1<<2);
+#endif
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
+	NVIC_EnableIRQ(SSP0_IRQn);
 	NVIC_EnableIRQ(SSP1_IRQn);
         NVIC_EnableIRQ(EINT2_IRQn);
+        NVIC_EnableIRQ(EINT0_IRQn);
 
 	printf("Entering loop\r\n");
 
@@ -270,16 +288,35 @@ static void system_init(void)
 	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_IOCON;	// Enable clock for IO configuration block
 	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_CT16B0;	// Enable clock for Timer
 	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_UART;	// Enable clock for UART
-	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP1;	// Enable clock for SSP0
+#ifdef SPI1
+	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP1;	// Enable clock for SSP1
+#endif
+#ifdef SPI0
+	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP0;	// Enable clock for SSP0
+#endif
 
 	/* Pin configuration */
 	LPC_IOCON->PIO1_6 = 0x01; // UART RX
 	LPC_IOCON->PIO1_7 = 0x01; // UART TX
 
+	/* For DIP-version */
+	LPC_IOCON->R_PIO1_0 = 0x01;
+	LPC_IOCON->R_PIO1_1 = 0x01;
+	LPC_IOCON->R_PIO1_2 = 0x01;
+	LPC_IOCON->SWDIO_PIO1_3 = 0x01;
+
+#ifdef SPI1
 	LPC_IOCON->PIO2_0 = 0x02; // SSP1 SSEL -- Olimex pin 2
-	LPC_IOCON->PIO2_1 = 0x02; // SSP0 SCK  -- Olimex pin 13
+	LPC_IOCON->PIO2_1 = 0x02; // SSP1 SCK  -- Olimex pin 13
 	LPC_IOCON->PIO2_2 = 0x02; // SSP1 MISO -- Olimex pin 26
-	LPC_IOCON->PIO2_3 = 0x02; // SSP0 MOSI -- Olimex pin 38
+	LPC_IOCON->PIO2_3 = 0x02; // SSP1 MOSI -- Olimex pin 38
+#else
+	LPC_IOCON->SCK_LOC = 0x02;
+	LPC_IOCON->PIO0_2 = 0x01; // SSP0 SSEL -- PIO0_2
+	LPC_IOCON->PIO0_6 = 0x02; // SSP0 SCK  -- PIO0_6
+	LPC_IOCON->PIO0_8 = 0x01; // SSP0 MISO -- PIO0_8
+	LPC_IOCON->PIO0_9 = 0x01; // SSP0 MOSI -- PIO0_9
+#endif
 
 	/* Configure UART */
 	// Select UART_PCLK to 50Mhz
@@ -303,13 +340,17 @@ static void system_init(void)
 
 	printf("UART initialized\r\n");
 
+#ifdef SPI1
 	/* Configure SSP1 for slave mode */
 	LPC_SYSCON->PRESETCTRL |= PRESETCTRL_SSP1_RST_N;
-	LPC_SSP1->CR0 = SSP_CR0_DSS_8_BIT | SSP_CR0_FRF_SPI | SSP_CR0_CPHA | SSP_CR0_CPOL;
-	LPC_SSP1->IMSC = SSP_IMSC_RXIM | SSP_IMSC_RTIM;
-	LPC_SSP1->CR1 = SSP_CR1_SSE | SSP_CR1_MS | SSP_CR1_SOD;
+#else
+	LPC_SYSCON->PRESETCTRL |= PRESETCTRL_SSP0_RST_N;
+#endif
+	SSP->CR0 = SSP_CR0_DSS_8_BIT | SSP_CR0_FRF_SPI | SSP_CR0_CPHA | SSP_CR0_CPOL;
+	SSP->IMSC = SSP_IMSC_RXIM | SSP_IMSC_RTIM;
+	SSP->CR1 = SSP_CR1_SSE | SSP_CR1_MS | SSP_CR1_SOD;
 
-	if( LPC_SSP1->SR & SSP_SR_TFE ) {
+	if( SSP->SR & SSP_SR_TFE ) {
 		printf("Transmit FIFO is empty\r\n");
 	} else {
 		printf("Transmit FIFO is NOT empty\r\n");
@@ -374,19 +415,29 @@ static uint16_t current_data_count;
 
 static uint16_t startX, startY, endX, endY;
 
-#define SCREEN_OFFSET_X		8
-#define SCREEN_OFFSET_Y		0
+#define SCREEN_OFFSET_X		0
+#define SCREEN_OFFSET_Y		8
 #define SCREEN_ROTATE		0
 
+#ifdef SPI0
+void SSP1_IRQHandler(void) {}
+#else
+void SSP0_IRQHandler(void) {}
+#endif
+
+#ifdef SPI0
+void SSP0_IRQHandler(void) 
+#else
 void SSP1_IRQHandler(void)
+#endif
 {
-	if( LPC_SSP1->MIS & SSP_MIS_RXMIS ||
-	    LPC_SSP1->MIS & SSP_MIS_RTMIS ) {
-		if( LPC_SSP1->MIS & SSP_MIS_RTMIS ) {
-			LPC_SSP1->ICR |= SSP_ICR_RTIC;
+	if( SSP->MIS & SSP_MIS_RXMIS ||
+	    SSP->MIS & SSP_MIS_RTMIS ) {
+		if( SSP->MIS & SSP_MIS_RTMIS ) {
+			SSP->ICR |= SSP_ICR_RTIC;
 		}
-		while( LPC_SSP1->SR & SSP_SR_RNE ) {
-			uint8_t data = (uint8_t)(LPC_SSP1->DR & 0xFF);
+		while( SSP->SR & SSP_SR_RNE ) {
+			uint8_t data = (uint8_t)(SSP->DR & 0xFF);
 			uint8_t nextOutByte = 0x00;
 			bool slaveEnable = false;
 #ifdef DEBUG
@@ -516,8 +567,8 @@ void SSP1_IRQHandler(void)
 						printf("\r\n");
 #endif
 						//matrix.getFrameBuffer().putPixel(x,y,color);
-						if( x <= frameBuffer[!currentFrameBuffer].getColCount() &&
-						    y <= frameBuffer[!currentFrameBuffer].getRowCount() ) {
+						if( x < frameBuffer[!currentFrameBuffer].getColCount() &&
+						    y < frameBuffer[!currentFrameBuffer].getRowCount() ) {
 							frameBuffer[!currentFrameBuffer].putPixel(x,y,color);
 						}
 					}
@@ -542,23 +593,34 @@ void SSP1_IRQHandler(void)
 				break;
 			}
 			if( slaveEnable ) {
-				LPC_SSP1->DR = nextOutByte;
-				LPC_SSP1->CR1 &= ~SSP_CR1_SOD;
+				SSP->DR = nextOutByte;
+				SSP->CR1 &= ~SSP_CR1_SOD;
 			} else {
-				LPC_SSP1->CR1 |= SSP_CR1_SOD;
+				SSP->CR1 |= SSP_CR1_SOD;
 			}
 		}
 	}	
 }
 
+#ifdef SPI1
+void PIOINT0_IRQHandler(void) {}
 void
 PIOINT2_IRQHandler(void) {
+#else
+void PIOINT2_IRQHandler(void) {}
+void
+PIOINT0_IRQHandler(void) {
+#endif
+#if SPI1
   LPC_GPIO2->IC |= (1<<0);
+#else
+  LPC_GPIO0->IC |= (1<<2);
+#endif
   state = STATE_IDLE;
-  while( LPC_SSP1->SR & SSP_SR_RNE ) {
-    uint8_t data = (uint8_t)(LPC_SSP1->DR & 0xFF);
+  while( SSP->SR & SSP_SR_RNE ) {
+    uint8_t data = (uint8_t)(SSP->DR & 0xFF);
   }
-  LPC_SSP1->CR1 |= SSP_CR1_SOD;
+  SSP->CR1 |= SSP_CR1_SOD;
 }
 
 #ifdef __cplusplus

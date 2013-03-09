@@ -3,6 +3,9 @@
 
 #include "inc/LPC11xx.h"
 
+#undef OLIMEX
+
+#ifdef OLIMEX
 // Olimex PIN 20
 #define CLK_OUT_PORT		LPC_GPIO2
 #define CLK_OUT_PIN		(1 << 5)
@@ -30,6 +33,30 @@
 // Olimex PIN 25
 #define ROW_ENABLE_PORT		LPC_GPIO2
 #define ROW_ENABLE_PIN		(1 << 10)
+
+#else
+
+#define CLK_OUT_PORT		LPC_GPIO1
+#define CLK_OUT_PIN		(1 << 1)
+
+#define SER_OUT_PORT		LPC_GPIO1
+#define SER_OUT_PIN		(1 << 5)
+
+#define LATCH_PORT		LPC_GPIO1
+#define LATCH_PIN		(1 << 3)
+
+#define ROW_SER_OUT_PORT	LPC_GPIO1
+#define ROW_SER_OUT_PIN		(1 << 2)
+
+#define ROW_CLK_OUT_PORT	LPC_GPIO1
+#define ROW_CLK_OUT_PIN		(1 << 8)
+
+#define ROW_LATCH_PORT		LPC_GPIO1
+#define ROW_LATCH_PIN		(1 << 4)
+
+#define ROW_ENABLE_PORT		LPC_GPIO1
+#define ROW_ENABLE_PIN		(1 << 0)
+#endif
 
 #ifndef FAST_GPIOPinWrite
 #define FAST_GPIOPinWrite(ulPort, ucPins, ucVal)  (ulPort->MASKED_ACCESS[ucPins] = ucVal)

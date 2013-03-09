@@ -135,7 +135,7 @@ void TIMER32_0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Defaul
 void TIMER32_1_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // SPI/SSP0 interrupt
-void SSP0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
+void SSP0_IRQHandler(void) __attribute__ ((interrupt)); //, weak, alias("__Default_Handler")));
 
 // UART interrupt
 void UART_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
@@ -168,7 +168,7 @@ void PIOINT2_IRQHandler(void) __attribute__ ((interrupt)); //, weak, alias("__De
 void PIOINT1_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // PIO INT0 interrupt
-void PIOINT0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
+void PIOINT0_IRQHandler(void) __attribute__ ((interrupt));//, weak, alias("__Default_Handler")));
 
 /*
 +=============================================================================+
