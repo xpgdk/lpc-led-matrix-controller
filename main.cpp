@@ -58,6 +58,9 @@ extern "C" {
 #include "led-matrix-lib/TestAnimation.hpp"
 #include "led-matrix-lib/PulseAnimation.hpp"
 
+#include <mcu++/gpio.hpp>
+#include <mcu++/lpc11xx_gpio.hpp>
+
 #define SPI0
 #undef SPI1
 
@@ -67,7 +70,25 @@ extern "C" {
 #define SSP LPC_SSP1
 #endif
 
-LedMatrixFrameBuffer<8,16,32>	frameBuffer[2];
+typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE, 2> SlaveSelect;
+
+class LedConfig {
+public:
+	static const uint16_t Rows = 8;
+	static const uint16_t Cols = 16;
+	static const uint16_t Levels = 32;
+
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,0>	GPIORowEnable;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,4>	GPIORowLatch;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,8>	GPIORowClock;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,2>	GPIORowOutput;
+
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,5>	GPIOColOutput;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,1>	GPIOColClock;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,3>	GPIOColLatch;
+};
+
+LedMatrixFrameBuffer<LedConfig>	frameBuffer[2];
 LedMatrixSimpleFont		defaultFont;
 LedMatrixScrollAnimation	scrollAnim(defaultFont);
 LedMatrix 			matrix(frameBuffer[0], defaultFont);
@@ -113,6 +134,7 @@ int main(void)
 	pll_start(CRYSTAL, FREQUENCY);			// start the PLL
 	system_init();							// initialize other necessary elements
 
+
 	// We want 50 frames per second.
 	// Each frame takes ROW_COUNT*COLOR_LEVELS updates
 	// = 16 * 64 = 512 updates
@@ -127,6 +149,8 @@ int main(void)
 	LED_gma = 0;
 #endif
 
+	matrix.init();
+#if 0
 	CLK_OUT_PORT->DIR |= CLK_OUT_PIN;
 	LATCH_PORT->DIR |= LATCH_PIN;
 	SER_OUT_PORT->DIR |= SER_OUT_PIN;
@@ -137,6 +161,7 @@ int main(void)
 	ROW_ENABLE_PORT->DIR |= ROW_ENABLE_PIN;
 
 	FAST_GPIOPinWrite(ROW_ENABLE_PORT, ROW_ENABLE_PIN, 0);
+#endif
 	//displayInit();
 
 	//char s[] = "#F00H#220e#550l#FF0l#BF0o #0F0W#F00orld  ";
@@ -160,6 +185,11 @@ int main(void)
 	//displayFillColor(COLOR(20, 0, 0));
 	//msg_mode = MODE_ANIM;
 
+#if 1
+	SlaveSelect::ConfigureDirection(MCU::GPIO::Input);
+	SlaveSelect::ConfigureInterrupt(MCU::GPIO::EdgeRising);
+	SlaveSelect::EnableInterrupt();
+#else
 #ifdef SPI1
         LPC_GPIO2->IS &= ~(1<<0);
         LPC_GPIO2->IBE &= ~(1<<0);
@@ -170,6 +200,7 @@ int main(void)
         LPC_GPIO0->IBE &= ~(1<<2);
         LPC_GPIO0->IEV |= (1<<2);
         LPC_GPIO0->IE |= (1<<2);
+#endif
 #endif
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
@@ -611,10 +642,14 @@ void PIOINT2_IRQHandler(void) {}
 void
 PIOINT0_IRQHandler(void) {
 #endif
+#if 1
+	SlaveSelect::ClearInterrupt();
+#else
 #if SPI1
   LPC_GPIO2->IC |= (1<<0);
 #else
   LPC_GPIO0->IC |= (1<<2);
+#endif
 #endif
   state = STATE_IDLE;
   while( SSP->SR & SSP_SR_RNE ) {

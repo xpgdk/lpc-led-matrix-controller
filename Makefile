@@ -48,7 +48,7 @@ AS_DEFS =
 
 # include directories (absolute or relative paths to additional folders with
 # headers, current folder is always included)
-INC_DIRS =
+INC_DIRS = mcu++-lib/include
 
 # library directories (absolute or relative paths to additional folders with
 # libraries)
@@ -60,7 +60,7 @@ LIBS = -lc -lgcc
 
 # additional directories with source files (absolute or relative paths to
 # folders with source files, current folder is always included)
-SRCS_DIRS = led-matrix-lib
+SRCS_DIRS = led-matrix-lib mcu++-lib/src
 
 # extension of C++ files
 CXX_EXT = cpp
