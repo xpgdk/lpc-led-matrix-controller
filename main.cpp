@@ -61,15 +61,9 @@ extern "C" {
 #include <mcu++/gpio.hpp>
 #include <mcu++/lpc11xx_gpio.hpp>
 
-#define SPI0
-#undef SPI1
+#include "board_config.hpp"
 
-#ifdef SPI0
-#define SSP LPC_SSP0
-#else
-#define SSP LPC_SSP1
-#endif
-
+typedef LPC1114DipConfig BoardConfig;
 typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE, 2> SlaveSelect;
 
 class LedConfig {
@@ -144,11 +138,6 @@ int main(void)
 	LPC_TMR16B0->MCR = TMR16_MCR_MR0I | TMR16_MCR_MR0R;
 	LPC_TMR16B0->TCR |= TMR16_TCR_CEN; // Enable timer
 
-#if 0
-	LED_GPIO->DIR |= LED;					// set the direction of the LED pin to output
-	LED_gma = 0;
-#endif
-
 	matrix.init();
 #if 0
 	CLK_OUT_PORT->DIR |= CLK_OUT_PIN;
@@ -189,6 +178,7 @@ int main(void)
 	SlaveSelect::ConfigureDirection(MCU::GPIO::Input);
 	SlaveSelect::ConfigureInterrupt(MCU::GPIO::EdgeRising);
 	SlaveSelect::EnableInterrupt();
+	SlaveSelect::ClearInterrupt();
 #else
 #ifdef SPI1
         LPC_GPIO2->IS &= ~(1<<0);
@@ -206,7 +196,7 @@ int main(void)
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
 	NVIC_EnableIRQ(SSP0_IRQn);
 	NVIC_EnableIRQ(SSP1_IRQn);
-        NVIC_EnableIRQ(EINT2_IRQn);
+        //NVIC_EnableIRQ(EINT2_IRQn);
         NVIC_EnableIRQ(EINT0_IRQn);
 
 	printf("Entering loop\r\n");
@@ -314,45 +304,13 @@ static uint32_t pll_start(uint32_t crystal, uint32_t frequency)
 * \details Enables clock for IO configuration block.
 *//*-------------------------------------------------------------------------*/
 
-static void system_init(void)
-{
-	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_IOCON;	// Enable clock for IO configuration block
-	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_CT16B0;	// Enable clock for Timer
-	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_UART;	// Enable clock for UART
-#ifdef SPI1
-	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP1;	// Enable clock for SSP1
-#endif
-#ifdef SPI0
-	LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP0;	// Enable clock for SSP0
-#endif
-
-	/* Pin configuration */
-	LPC_IOCON->PIO1_6 = 0x01; // UART RX
-	LPC_IOCON->PIO1_7 = 0x01; // UART TX
-
-	/* For DIP-version */
-	LPC_IOCON->R_PIO1_0 = 0x01;
-	LPC_IOCON->R_PIO1_1 = 0x01;
-	LPC_IOCON->R_PIO1_2 = 0x01;
-	LPC_IOCON->SWDIO_PIO1_3 = 0x01;
-
-#ifdef SPI1
-	LPC_IOCON->PIO2_0 = 0x02; // SSP1 SSEL -- Olimex pin 2
-	LPC_IOCON->PIO2_1 = 0x02; // SSP1 SCK  -- Olimex pin 13
-	LPC_IOCON->PIO2_2 = 0x02; // SSP1 MISO -- Olimex pin 26
-	LPC_IOCON->PIO2_3 = 0x02; // SSP1 MOSI -- Olimex pin 38
-#else
-	LPC_IOCON->SCK_LOC = 0x02;
-	LPC_IOCON->PIO0_2 = 0x01; // SSP0 SSEL -- PIO0_2
-	LPC_IOCON->PIO0_6 = 0x02; // SSP0 SCK  -- PIO0_6
-	LPC_IOCON->PIO0_8 = 0x01; // SSP0 MISO -- PIO0_8
-	LPC_IOCON->PIO0_9 = 0x01; // SSP0 MOSI -- PIO0_9
-#endif
+static void system_init(void) {
+	BoardConfig::EnableClocks();
+	BoardConfig::ConfigurePins();
 
 	/* Configure UART */
 	// Select UART_PCLK to 50Mhz
 	LPC_SYSCON->UARTCLKDIV = 1; // 8-bit divider
-	LPC_SYSCON->SSP1CLKDIV = 1;
 
 	LPC_UART->LCR |= UART_LCR_DLAB;
 	// Baud rate is defined by:
@@ -371,23 +329,7 @@ static void system_init(void)
 
 	printf("UART initialized\r\n");
 
-#ifdef SPI1
-	/* Configure SSP1 for slave mode */
-	LPC_SYSCON->PRESETCTRL |= PRESETCTRL_SSP1_RST_N;
-#else
-	LPC_SYSCON->PRESETCTRL |= PRESETCTRL_SSP0_RST_N;
-#endif
-	SSP->CR0 = SSP_CR0_DSS_8_BIT | SSP_CR0_FRF_SPI | SSP_CR0_CPHA | SSP_CR0_CPOL;
-	SSP->IMSC = SSP_IMSC_RXIM | SSP_IMSC_RTIM;
-	SSP->CR1 = SSP_CR1_SSE | SSP_CR1_MS | SSP_CR1_SOD;
-
-	if( SSP->SR & SSP_SR_TFE ) {
-		printf("Transmit FIFO is empty\r\n");
-	} else {
-		printf("Transmit FIFO is NOT empty\r\n");
-	}
-	// Ensure that we have something to send
-	//LPC_SSP1->DR = 0x42;
+	BoardConfig::SetupSPI();
 
 	printf("SPI Initialized\r\n");
 }
@@ -411,7 +353,6 @@ extern "C" {
 
 void TIMER16_0_IRQHandler(void)
 {
-	//LED_gma = 0;
 	//NVIC_ClearPendingIRQ(TIMER_16_0_IRQn);
 	if( LPC_TMR16B0->IR & 0x01) {
 		LPC_TMR16B0->IR = 0x01;
@@ -450,18 +391,10 @@ static uint16_t startX, startY, endX, endY;
 #define SCREEN_OFFSET_Y		8
 #define SCREEN_ROTATE		0
 
-#ifdef SPI0
-void SSP1_IRQHandler(void) {}
-#else
-void SSP0_IRQHandler(void) {}
-#endif
-
-#ifdef SPI0
-void SSP0_IRQHandler(void) 
-#else
-void SSP1_IRQHandler(void)
-#endif
+void handleSpiData()
 {
+	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
+
 	if( SSP->MIS & SSP_MIS_RXMIS ||
 	    SSP->MIS & SSP_MIS_RTMIS ) {
 		if( SSP->MIS & SSP_MIS_RTMIS ) {
@@ -633,31 +566,37 @@ void SSP1_IRQHandler(void)
 	}	
 }
 
-#ifdef SPI1
-void PIOINT0_IRQHandler(void) {}
-void
-PIOINT2_IRQHandler(void) {
-#else
-void PIOINT2_IRQHandler(void) {}
 void
 PIOINT0_IRQHandler(void) {
-#endif
-#if 1
+	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
+
 	SlaveSelect::ClearInterrupt();
-#else
-#if SPI1
-  LPC_GPIO2->IC |= (1<<0);
-#else
-  LPC_GPIO0->IC |= (1<<2);
-#endif
-#endif
-  state = STATE_IDLE;
-  while( SSP->SR & SSP_SR_RNE ) {
-    uint8_t data = (uint8_t)(SSP->DR & 0xFF);
-  }
-  SSP->CR1 |= SSP_CR1_SOD;
+	state = STATE_IDLE;
+	while( SSP->SR & SSP_SR_RNE ) {
+		uint8_t data = (uint8_t)(SSP->DR & 0xFF);
+	}
+	SSP->CR1 |= SSP_CR1_SOD;
 }
 
+void
+PIOINT2_IRQHandler(void) {
+	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
+
+	SlaveSelect::ClearInterrupt();
+	state = STATE_IDLE;
+	while( SSP->SR & SSP_SR_RNE ) {
+		uint8_t data = (uint8_t)(SSP->DR & 0xFF);
+	}
+	SSP->CR1 |= SSP_CR1_SOD;
+}
+
+void SSP0_IRQHandler(void) {
+	handleSpiData();
+}
+
+void SSP1_IRQHandler(void) {
+	handleSpiData();
+}
 #ifdef __cplusplus
 }
 #endif
