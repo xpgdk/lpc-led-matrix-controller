@@ -92,7 +92,7 @@ PulseAnimation			pulseAnimation;
 
 uint8_t				currentFrameBuffer;
 
-//#define DEBUG
+#undef DEBUG
 
 /*
 +=============================================================================+
@@ -388,7 +388,7 @@ static uint16_t current_data_count;
 static uint16_t startX, startY, endX, endY;
 
 #define SCREEN_OFFSET_X		0
-#define SCREEN_OFFSET_Y		8
+#define SCREEN_OFFSET_Y		0
 #define SCREEN_ROTATE		0
 
 void handleSpiData()
@@ -570,7 +570,10 @@ void
 PIOINT0_IRQHandler(void) {
 	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
 
+
 	SlaveSelect::ClearInterrupt();
+        //printf("De-select 0\r\n");
+
 	state = STATE_IDLE;
 	while( SSP->SR & SSP_SR_RNE ) {
 		uint8_t data = (uint8_t)(SSP->DR & 0xFF);
@@ -583,6 +586,7 @@ PIOINT2_IRQHandler(void) {
 	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
 
 	SlaveSelect::ClearInterrupt();
+        //printf("De-select 2\r\n");
 	state = STATE_IDLE;
 	while( SSP->SR & SSP_SR_RNE ) {
 		uint8_t data = (uint8_t)(SSP->DR & 0xFF);
