@@ -388,7 +388,7 @@ static uint16_t current_data_count;
 static uint16_t startX, startY, endX, endY;
 
 #define SCREEN_OFFSET_X		0
-#define SCREEN_OFFSET_Y		0
+#define SCREEN_OFFSET_Y		8
 #define SCREEN_ROTATE		0
 
 void handleSpiData()
