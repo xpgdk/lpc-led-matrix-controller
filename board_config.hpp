@@ -35,8 +35,28 @@ public:
 	}
 };
 
+
+class LedOlimexConfig {
+public:
+	static const uint16_t Rows = 8;
+	static const uint16_t Cols = 16;
+	static const uint16_t Levels = 32;
+
+	typedef MCU::StaticLPCGPIO<LPC_GPIO2_BASE,10>	GPIORowEnable;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO2_BASE,9>	GPIORowLatch;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE,7>	GPIORowClock;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE,6>	GPIORowOutput;
+
+	typedef MCU::StaticLPCGPIO<LPC_GPIO3_BASE,5>	GPIOColOutput;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO2_BASE,5>	GPIOColClock;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO2_BASE,4>	GPIOColLatch;
+};
+
 class LPC1114OlimexConfig{
 public:
+	typedef LedOlimexConfig LedConfig;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO2_BASE, 0> SlaveSelect;
+
 	static void EnableClocks() {
 		Parent::EnableClocks();
 		LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP1;	// Enable clock for SSP1
@@ -53,10 +73,9 @@ public:
 		LPC_IOCON->PIO2_1 = 0x02; // SSP1 SCK  -- Olimex pin 13
 		LPC_IOCON->PIO2_2 = 0x02; // SSP1 MISO -- Olimex pin 26
 		LPC_IOCON->PIO2_3 = 0x02; // SSP1 MOSI -- Olimex pin 38
+		LPC_SYSCON->PRESETCTRL |= PRESETCTRL_SSP1_RST_N;
 
 		Parent::SetupSPI();
-
-		LPC_SYSCON->PRESETCTRL |= PRESETCTRL_SSP1_RST_N;
 	}
 
 	static LPC_SSP_TypeDef * GetSSP() {
@@ -66,8 +85,28 @@ private:
 	typedef CommonBoardConfig<LPC_SSP1_BASE> Parent;
 };
 
+
+class LedDipConfig {
+public:
+	static const uint16_t Rows = 8;
+	static const uint16_t Cols = 16;
+	static const uint16_t Levels = 32;
+
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,0>	GPIORowEnable;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,4>	GPIORowLatch;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,8>	GPIORowClock;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,2>	GPIORowOutput;
+
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,5>	GPIOColOutput;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,1>	GPIOColClock;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,3>	GPIOColLatch;
+};
+
 class LPC1114DipConfig {
 public:
+	typedef LedDipConfig LedConfig;
+	typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE, 2> SlaveSelect;
+
 	static void EnableClocks() {
 		Parent::EnableClocks();
 		LPC_SYSCON->SYSAHBCLKCTRL |= SYSAHBCLKCTRL_SSP0;	// Enable clock for SSP0

@@ -63,26 +63,12 @@ extern "C" {
 
 #include "board_config.hpp"
 
-typedef LPC1114DipConfig BoardConfig;
-typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE, 2> SlaveSelect;
+//typedef LPC1114DipConfig BoardConfig;
+//typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE, 2> SlaveSelect;
+typedef LPC1114OlimexConfig BoardConfig;
+typedef BoardConfig::SlaveSelect SlaveSelect;
 
-class LedConfig {
-public:
-	static const uint16_t Rows = 8;
-	static const uint16_t Cols = 16;
-	static const uint16_t Levels = 32;
-
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,0>	GPIORowEnable;
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,4>	GPIORowLatch;
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,8>	GPIORowClock;
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,2>	GPIORowOutput;
-
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,5>	GPIOColOutput;
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,1>	GPIOColClock;
-	typedef MCU::StaticLPCGPIO<LPC_GPIO1_BASE,3>	GPIOColLatch;
-};
-
-LedMatrixFrameBuffer<LedConfig>	frameBuffer[2];
+LedMatrixFrameBuffer<BoardConfig::LedConfig>	frameBuffer[2];
 LedMatrixSimpleFont		defaultFont;
 LedMatrixScrollAnimation	scrollAnim(defaultFont);
 LedMatrix 			matrix(frameBuffer[0], defaultFont);
@@ -93,6 +79,38 @@ PulseAnimation			pulseAnimation;
 uint8_t				currentFrameBuffer;
 
 #undef DEBUG
+
+#define STATE_IDLE			0x00
+#define STATE_MESSAGE_CMD			0x01
+#define STATE_MESSAGE_CMD_RDY_FOR_DATA	0x02
+#define STATE_MESSAGE_CMD_DATA		0x03
+#define STATE_MESSAGE_PUT_RECT_ARGS     0x04
+#define STATE_MESSAGE_PUT_RECT_DATA     0x05
+#define STATE_RESP_TO_IDLE1		0xFD
+#define STATE_RESP_TO_IDLE2		0xFE
+#define STATE_INVALID			0xFF
+
+#define CMD_RESET		0x01
+#define CMD_APPEND_MSG		0x02
+#define CMD_CLEAR_MSG		0x03
+#define CMD_PUT_RECT_MSG        0x04
+#define CMD_FLIP_MSG		0x05
+
+#define CMD_RESP_OK		0x01
+#define CMD_RESP_ERR		0xFF
+
+
+static volatile uint16_t state = STATE_IDLE;
+static uint8_t data_buffer[100];
+static uint16_t data_count;
+static uint16_t current_data_count;
+
+static uint16_t startX, startY, endX, endY;
+static uint16_t currentX, currentY;
+
+#define SCREEN_OFFSET_X		0
+#define SCREEN_OFFSET_Y		0
+#define SCREEN_ROTATE		0
 
 /*
 +=============================================================================+
@@ -159,7 +177,10 @@ int main(void)
 	//char s[] = "#FF0EEEE     ";
 	char s[] = "#3F00Hello #003FWorld";
 
-	matrix.setAnimation(&scrollAnim, 6);
+	LedMatrixColor yellow(5, 32, 0);
+
+	//matrix.setAnimation(&scrollAnim, 6);
+	matrix.clear();
 	scrollAnim.setMessage(s, strlen(s));
 
 	currentFrameBuffer = 0;
@@ -194,16 +215,210 @@ int main(void)
 #endif
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
-	NVIC_EnableIRQ(SSP0_IRQn);
-	NVIC_EnableIRQ(SSP1_IRQn);
+	/*NVIC_EnableIRQ(SSP0_IRQn);
+	NVIC_EnableIRQ(SSP1_IRQn);*/
         //NVIC_EnableIRQ(EINT2_IRQn);
-        NVIC_EnableIRQ(EINT0_IRQn);
+        //NVIC_EnableIRQ(EINT0_IRQn);
 
 	printf("Entering loop\r\n");
 
+	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
+
+	uint16_t count = 0;
+	uint16_t match = 0;
+	volatile uint8_t value, prev_value;
+
+	value = prev_value = 1;
+
 	while (1)
 	{
-		system_sleep();
+		//system_sleep();
+		value = SlaveSelect::Read();
+		while( SSP->SR & SSP_SR_RNE ) {
+			uint8_t data = (uint8_t)(SSP->DR & 0xFF);
+			uint8_t nextOutByte = 0x00;
+			bool slaveEnable = false;
+			count++;
+#ifdef DEBUG
+			printf("State is: ");
+			putHex8(state);
+			printf("\r\n");
+			printf("Read a byte: ");
+			putHex8(data);
+			printf("\r\n");
+#endif
+			switch(state) {
+				case STATE_IDLE:
+					if( data == CMD_APPEND_MSG ) {
+						state = STATE_MESSAGE_CMD;
+					} else if( data == CMD_CLEAR_MSG ) {
+						nextOutByte = CMD_RESP_OK;
+						slaveEnable = true;
+						//matrix.clear();
+						frameBuffer[!currentFrameBuffer].clear();
+						//scrollAnim.setMessage((char*)"", 0);
+						state = STATE_RESP_TO_IDLE1;
+                                        } else if( data == CMD_PUT_RECT_MSG) {
+                                                state = STATE_MESSAGE_PUT_RECT_ARGS;
+                                                current_data_count = 0;
+					} else if( data == CMD_FLIP_MSG) {
+						//frameBuffer.flipBuffers();
+						currentFrameBuffer = !currentFrameBuffer;
+						matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
+						matrix.clearAnimation();
+						nextOutByte = CMD_RESP_OK;
+						slaveEnable = true;
+						state = STATE_RESP_TO_IDLE1;
+					} else if( data == CMD_RESET ) {
+						state = STATE_IDLE;
+					} else {
+						state = STATE_INVALID;
+					}
+				break;
+				case STATE_RESP_TO_IDLE1:
+					state = STATE_RESP_TO_IDLE2;
+				break;
+				case STATE_RESP_TO_IDLE2:
+					state = STATE_IDLE;
+				break;
+				case STATE_MESSAGE_CMD:
+					state = STATE_MESSAGE_CMD_DATA;
+					data_count = data;
+					current_data_count = 0;
+#ifdef DEBUG
+					printf("Expecting ");
+					putHex8(data_count);
+					printf(" bytes\r\n");
+#endif
+				break;
+				case STATE_MESSAGE_CMD_DATA:
+					data_buffer[current_data_count] = data;
+					current_data_count++;
+					if( current_data_count == data_count - 1) {
+						nextOutByte = 0x42;
+						slaveEnable = true;
+					}
+					if( current_data_count >= data_count ) {
+						//LPC_SSP1->CR1 &= ~SSP_CR1_SOD;
+						//LPC_SSP1->DR = CMD_RESP_OK;
+						nextOutByte = CMD_RESP_OK;
+						slaveEnable = true;
+						//append_message((char*)data_buffer, data_count);
+						scrollAnim.appendMessage((char*)data_buffer, data_count);
+#ifdef DEBUG
+						printf("Got all data\r\n");
+						for(int i=0; i<data_count; i++) {
+							putHex8(data_buffer[i]);
+							printf(" ");
+						}
+						printf("\r\n");
+#endif
+						state = STATE_RESP_TO_IDLE1;
+					}
+				break;
+                                case STATE_MESSAGE_PUT_RECT_ARGS:
+                                  data_buffer[current_data_count] = data;
+                                  current_data_count++;
+                                  if( current_data_count >= 8 ) {
+                                    startX = (data_buffer[0] << 8) | data_buffer[1];
+                                    startY = (data_buffer[2] << 8) | data_buffer[3];
+                                    endX = (data_buffer[4] << 8) | data_buffer[5];
+                                    endY = (data_buffer[6] << 8) | data_buffer[7];
+                                    data_count = (endX-startX)*(endY-startY)*2;
+                                    current_data_count = 0;
+#ifdef DEBUG
+                                    printf("Drawing from (");
+                                    putHex16(startX);
+                                    printf(",");
+                                    putHex16(startY);
+                                    printf(") to (");
+                                    putHex16(endX);
+                                    printf(",");
+                                    putHex16(endY);
+                                    printf(")\r\n");
+                                    printf("Expecting ");
+                                    putHex16(data_count);
+                                    printf(" bytes\r\n");
+#endif
+                                    state = STATE_MESSAGE_PUT_RECT_DATA;
+				    currentX = startX;
+				    currentY = startY;
+                                  }
+                                break;
+                                case STATE_MESSAGE_PUT_RECT_DATA:
+					data_buffer[current_data_count%2] = data;
+					if( current_data_count % 2 == 1 ) {
+						uint16_t r = data_buffer[0];
+						uint16_t g = data_buffer[1];
+						//LedMatrixColor color(r,g, 0);
+						uint16_t color = LedMatrixColor::getValue(r, g, 0);
+						/*uint16_t y = ((current_data_count/2)/(endX-startX)) + startY;
+						uint16_t x = ((current_data_count/2)%(endX-startX)) + startX;*/
+						uint16_t x = currentX;
+						uint16_t y = currentY;
+						x -= SCREEN_OFFSET_X;
+						y -= SCREEN_OFFSET_Y;
+#if SCREEN_ROTATE
+						uint16_t tmp = x;
+						x = y;
+						y = tmp;
+#endif
+#ifdef DEBUG
+						printf("Drawing pixel at ");
+						putHex16(x);
+						printf(",");
+						putHex16(y);
+						printf("\r\n");
+#endif
+						//matrix.getFrameBuffer().putPixel(x,y,color);
+#if 1
+	/*					if( x < frameBuffer[!currentFrameBuffer].getColCount() &&
+						    y < frameBuffer[!currentFrameBuffer].getRowCount() ) {*/
+							frameBuffer[!currentFrameBuffer].putPixelDirect(x,y,color);
+						/*}*/
+#endif
+						currentX++;
+						if( currentX >= endX ) {
+							currentX = startX;
+							currentY++;
+						}
+					}
+					current_data_count++;
+					if( current_data_count >= data_count ) {
+						nextOutByte = CMD_RESP_OK;
+						slaveEnable = true;
+						state = STATE_RESP_TO_IDLE1;
+					}
+                                break;
+				case STATE_INVALID:
+					if( data == CMD_RESET ) {
+						state = STATE_IDLE;
+						printf("Reset\r\n");
+					} else {
+						/*LPC_SSP1->CR1 &= ~SSP_CR1_SOD;
+						LPC_SSP1->DR = CMD_RESP_ERR;*/
+						printf("Ignoring data in invalid state: ");
+						putHex8(data);
+						printf("\r\n");
+					}
+				break;
+			}
+		}
+		if( value != prev_value && value == 1 ) {
+			printf("De-select\r\n");
+			/*while( SSP->SR & SSP_SR_RNE ) {
+				uint8_t data = (uint8_t)(SSP->DR & 0xFF);
+				count++;
+			}*/
+			if( count != 0x20E ) {
+				printf("Got: ");
+				putHex16(count);
+				printf("\r\n");
+			}
+			state = STATE_IDLE;
+			count = 0;
+		}
+		prev_value = value;
 	}
 }
 
@@ -361,35 +576,7 @@ void TIMER16_0_IRQHandler(void)
 
 }
 
-#define CMD_RESET		0x01
-#define CMD_APPEND_MSG		0x02
-#define CMD_CLEAR_MSG		0x03
-#define CMD_PUT_RECT_MSG        0x04
-#define CMD_FLIP_MSG		0x05
 
-#define CMD_RESP_OK		0x01
-#define CMD_RESP_ERR		0xFF
-
-#define STATE_IDLE			0x00
-#define STATE_MESSAGE_CMD			0x01
-#define STATE_MESSAGE_CMD_RDY_FOR_DATA	0x02
-#define STATE_MESSAGE_CMD_DATA		0x03
-#define STATE_MESSAGE_PUT_RECT_ARGS     0x04
-#define STATE_MESSAGE_PUT_RECT_DATA     0x05
-#define STATE_RESP_TO_IDLE1		0xFD
-#define STATE_RESP_TO_IDLE2		0xFE
-#define STATE_INVALID			0xFF
-
-static uint16_t state = STATE_IDLE;
-static uint8_t data_buffer[100];
-static uint16_t data_count;
-static uint16_t current_data_count;
-
-static uint16_t startX, startY, endX, endY;
-
-#define SCREEN_OFFSET_X		0
-#define SCREEN_OFFSET_Y		8
-#define SCREEN_ROTATE		0
 
 void handleSpiData()
 {
@@ -570,7 +757,6 @@ void
 PIOINT0_IRQHandler(void) {
 	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
 
-
 	SlaveSelect::ClearInterrupt();
         //printf("De-select 0\r\n");
 
@@ -578,7 +764,7 @@ PIOINT0_IRQHandler(void) {
 	while( SSP->SR & SSP_SR_RNE ) {
 		uint8_t data = (uint8_t)(SSP->DR & 0xFF);
 	}
-	SSP->CR1 |= SSP_CR1_SOD;
+	//SSP->CR1 |= SSP_CR1_SOD;
 }
 
 void
