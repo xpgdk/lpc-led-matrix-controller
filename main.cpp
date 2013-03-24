@@ -68,13 +68,15 @@ extern "C" {
 typedef LPC1114OlimexConfig BoardConfig;
 typedef BoardConfig::SlaveSelect SlaveSelect;
 
+typedef LedMatrixFrameBuffer<BoardConfig::LedConfig>	FrameBuffer;
+
 LedMatrixFrameBuffer<BoardConfig::LedConfig>	frameBuffer[2];
 LedMatrixSimpleFont		defaultFont;
-LedMatrixScrollAnimation	scrollAnim(defaultFont);
-LedMatrix 			matrix(frameBuffer[0], defaultFont);
+LedMatrixScrollAnimation<FrameBuffer>	scrollAnim(defaultFont);
+LedMatrix<FrameBuffer> 			matrix(frameBuffer[0], defaultFont);
 
-LedMatrixTestAnimation		testAnimation(matrix, scrollAnim);
-PulseAnimation			pulseAnimation;
+LedMatrixTestAnimation<FrameBuffer>		testAnimation(matrix, scrollAnim);
+PulseAnimation<FrameBuffer>			pulseAnimation;
 
 uint8_t				currentFrameBuffer;
 
@@ -370,12 +372,11 @@ int main(void)
 						putHex16(y);
 						printf("\r\n");
 #endif
-						//matrix.getFrameBuffer().putPixel(x,y,color);
 #if 1
-						/*if( x < frameBuffer[!currentFrameBuffer].getColCount() &&
-						    y < frameBuffer[!currentFrameBuffer].getRowCount() ) {*/
-							frameBuffer[!currentFrameBuffer].putPixelDirect(x,y,color);
-						/*}*/
+						if( x < FrameBuffer::getColCount() &&
+						    y < FrameBuffer::getRowCount() ) {
+							frameBuffer[!currentFrameBuffer].putPixel(x,y,color);
+						}
 #endif
 						currentX++;
 						if( currentX >= endX ) {
