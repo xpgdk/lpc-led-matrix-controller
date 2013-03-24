@@ -196,10 +196,10 @@ int main(void)
 	//msg_mode = MODE_ANIM;
 
 #if 1
-	SlaveSelect::ConfigureDirection(MCU::GPIO::Input);
-	SlaveSelect::ConfigureInterrupt(MCU::GPIO::EdgeRising);
+	//SlaveSelect::ConfigureDirection(MCU::GPIO::Input);
+	/*SlaveSelect::ConfigureInterrupt(MCU::GPIO::EdgeRising);
 	SlaveSelect::EnableInterrupt();
-	SlaveSelect::ClearInterrupt();
+	SlaveSelect::ClearInterrupt();*/
 #else
 #ifdef SPI1
         LPC_GPIO2->IS &= ~(1<<0);
@@ -372,7 +372,7 @@ int main(void)
 #endif
 						//matrix.getFrameBuffer().putPixel(x,y,color);
 #if 1
-	/*					if( x < frameBuffer[!currentFrameBuffer].getColCount() &&
+						/*if( x < frameBuffer[!currentFrameBuffer].getColCount() &&
 						    y < frameBuffer[!currentFrameBuffer].getRowCount() ) {*/
 							frameBuffer[!currentFrameBuffer].putPixelDirect(x,y,color);
 						/*}*/
@@ -405,7 +405,7 @@ int main(void)
 			}
 		}
 		if( value != prev_value && value == 1 ) {
-			printf("De-select\r\n");
+			//printf("De-select\r\n");
 			/*while( SSP->SR & SSP_SR_RNE ) {
 				uint8_t data = (uint8_t)(SSP->DR & 0xFF);
 				count++;
