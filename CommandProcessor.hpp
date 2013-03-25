@@ -37,7 +37,7 @@ public:
 					currentFrameBuffer = !currentFrameBuffer;
 					matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
 					matrix.clearAnimation();
-					printf("Flip\r\n");
+					//printf("Flip\r\n");
 				} else {
 					state = Idle;
 				}

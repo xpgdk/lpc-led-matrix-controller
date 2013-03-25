@@ -229,11 +229,11 @@ int main(void)
 				uint8_t data = (uint8_t)(SSP->DR & 0xFF);
 				count++;
 			}*/
-			//if( count != 0x20E ) {
+			if( count != 0x20E ) {
 				printf("Got: ");
 				putHex16(count);
 				printf("\r\n");
-			//}
+			}
 			count = 0;
 		}
 		prev_value = value;
