@@ -116,7 +116,7 @@ void WAKEUP_PIO1_0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__De
 void CAN_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // SPI/SSP1 interrupt
-void SSP1_IRQHandler(void) __attribute__ ((interrupt)); //, weak, alias("__Default_Handler")));
+void SSP1_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // I2C interrupt
 void I2C_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
@@ -135,7 +135,7 @@ void TIMER32_0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Defaul
 void TIMER32_1_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // SPI/SSP0 interrupt
-void SSP0_IRQHandler(void) __attribute__ ((interrupt)); //, weak, alias("__Default_Handler")));
+void SSP0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // UART interrupt
 void UART_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
@@ -162,13 +162,13 @@ void __Reserved_0xAC_Handler(void) __attribute__ ((interrupt, weak, alias("__Def
 void PIOINT3_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // PIO INT2 interrupt
-void PIOINT2_IRQHandler(void) __attribute__ ((interrupt)); //, weak, alias("__Default_Handler")));
+void PIOINT2_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // PIO INT1 interrupt
 void PIOINT1_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 // PIO INT0 interrupt
-void PIOINT0_IRQHandler(void) __attribute__ ((interrupt));//, weak, alias("__Default_Handler")));
+void PIOINT0_IRQHandler(void) __attribute__ ((interrupt, weak, alias("__Default_Handler")));
 
 /*
 +=============================================================================+
