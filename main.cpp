@@ -67,7 +67,8 @@ extern "C" {
 
 //typedef LPC1114DipConfig BoardConfig;
 //typedef MCU::StaticLPCGPIO<LPC_GPIO0_BASE, 2> SlaveSelect;
-typedef LPC1114OlimexConfig BoardConfig;
+//typedef LPC1114OlimexConfig BoardConfig;
+typedef LPC1113BreakoutConfig BoardConfig;
 typedef BoardConfig::SlaveSelect SlaveSelect;
 
 typedef LedMatrixFrameBuffer<BoardConfig::LedConfig>	FrameBuffer;
@@ -85,9 +86,10 @@ public:
 	typedef ::FrameBuffer 			FrameBuffer;
 	typedef ::LedMatrix<FrameBuffer>	Matrix;
 	
-	static const int	ScreenOffsetX = 0;
+	static const int	ScreenOffsetX = 16;
 	static const int	ScreenOffsetY = 0;
-	static const bool	ScreenRotate = false;
+	static const bool	ScreenRotate = true;
+	static const bool	ScreenFlipY = true;
 };
 
 CommandProcessor<CommandProcessorConfig> processor(frameBuffer, matrix);
@@ -161,9 +163,13 @@ int main(void)
 	char s[] = "#3F00Hello #003FWorld";
 
 	LedMatrixColor yellow(5, 32, 0);
+	LedMatrixColor red(32, 0, 0);
+	LedMatrixColor green(0, 32, 0);
 
 	//matrix.setAnimation(&scrollAnim, 6);
 	matrix.clear();
+	matrix.getFrameBuffer().putPixel(1, 1, red);
+	matrix.getFrameBuffer().putPixel(1, 2, green);
 	scrollAnim.setMessage(s, strlen(s));
 
 	//matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
@@ -195,6 +201,7 @@ int main(void)
         LPC_GPIO0->IE |= (1<<2);
 #endif
 #endif
+	//matrix.getFrameBuffer().testPins();
 
 	NVIC_EnableIRQ(TIMER_16_0_IRQn);
 	/*NVIC_EnableIRQ(SSP0_IRQn);
@@ -203,6 +210,7 @@ int main(void)
         //NVIC_EnableIRQ(EINT0_IRQn);
 
 	printf("Entering loop\r\n");
+	//while(true);
 
 	LPC_SSP_TypeDef *SSP = BoardConfig::GetSSP();
 
@@ -229,11 +237,11 @@ int main(void)
 				uint8_t data = (uint8_t)(SSP->DR & 0xFF);
 				count++;
 			}*/
-			if( count != 0x20E ) {
+			/*if( count != 0x20E ) {
 				printf("Got: ");
 				putHex16(count);
 				printf("\r\n");
-			}
+			}*/
 			count = 0;
 		}
 		prev_value = value;
