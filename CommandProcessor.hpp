@@ -8,6 +8,7 @@ public:
 	static const int	ScreenOffsetX = 0;
 	static const int	ScreenOffsetY = 0;
 	static const bool	ScreenRotate = false;
+	static const bool	ScreenFlipY = false;
 };
 */
 
@@ -37,8 +38,9 @@ public:
 					currentFrameBuffer = !currentFrameBuffer;
 					matrix.changeFrameBuffer(&frameBuffer[currentFrameBuffer]);
 					matrix.clearAnimation();
-					//printf("Flip\r\n");
 				} else {
+					/*putHex8(data);
+					printf("\r\n");*/
 					state = Idle;
 				}
 				break;
@@ -86,8 +88,12 @@ public:
 					y -= Config::ScreenOffsetY;
 					if( Config::ScreenRotate ) {
 						uint16_t tmp = x;
-						x = y;
+						x = FrameBuffer::getColCount() - y - 1;
 						y = tmp;
+					}
+					if( Config::ScreenFlipY ) {
+						y = FrameBuffer::getRowCount() - y - 1;
+						x = FrameBuffer::getColCount() - x - 1;
 					}
 #ifdef DEBUG
 					printf("Drawing pixel at ");
